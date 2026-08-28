@@ -42,7 +42,8 @@
       ChevronDown, Leaf, Download, Search, ShieldCheck, ShieldAlert, Plus, Trash2, Pencil,
       FolderDown, Save, X, Boxes, ClipboardCheck, Beef, Scissors,
       FileUp, FileDown, FileText, Building2, UserPlus, Settings, AlertCircle, Key,
-      Send, FileSpreadsheet, AlertTriangle, Filter, Cloud, CloudUpload, CloudOff, RefreshCw
+      Send, FileSpreadsheet, AlertTriangle, Filter, Cloud, CloudUpload, CloudOff, RefreshCw,
+      Calendar
     } from "lucide-react";
 
     // Usuarios por defecto con contraseñas hasheadas criptográficamente (SHA-256 + Salt)
@@ -57,7 +58,7 @@
       { user: "epena", pass: "$sha256$a49190f7b3551efdeaa781793611d6fa$ee8fe0f642a92d0a5d9fcac00bc60e148e4a294df1e99b91e0e6cdec58daa1ba", name: "Edwin Peña", role: "basico" },
     ];
 
-    const LOGO_URI = "LOGO AURORA GRUESO.png";
+    const LOGO_URI = encodeURI("logo A Grupo Gastronomico.png");
 
     // Catálogos base de LOGÍSTICA (Extraído de tu Excel de Cocina Actualizado)
     const COCINA_CATALOG_BASE = [
@@ -467,7 +468,7 @@
       { key: "urgencia", label: "CHECK ✅", type: "checkbox", color: "#FF8C00" },
     ];
 
-const BAR_CATALOG_BASE = [
+    const BAR_CATALOG_BASE = [
       { c: "FRUTAS Y OTROS INSUMOS", b1: 3, b2: 3, l1: "DOM-MIE", l2: "JUE-SAB", u: "kg", f: "DIARIO", p: "ARANDANO", ur: false },
       { c: "FRUTAS Y OTROS INSUMOS", b1: 200, b2: 200, l1: "DOM-MIE", l2: "JUE-SAB", u: "gr", f: "DIARIO", p: "CEREZAS NEGRAS", ur: false },
       { c: "FRUTAS Y OTROS INSUMOS", b1: 250, b2: 250, l1: "DOM-MIE", l2: "JUE-SAB", u: "gr", f: "DIARIO", p: "FRAMBUESAS", ur: false },
@@ -844,7 +845,7 @@ const BAR_CATALOG_BASE = [
       const security = await getAuthSecurity();
       const userRecord = security[username];
       if (!userRecord) return { locked: false, remainingMinutes: 0 };
-      
+
       const now = Date.now();
       if (userRecord.lockedUntil && now < userRecord.lockedUntil) {
         const remainingMs = userRecord.lockedUntil - now;
@@ -859,7 +860,7 @@ const BAR_CATALOG_BASE = [
       const security = await getAuthSecurity();
       const now = Date.now();
       const userRecord = security[username] || { attempts: 0, lockedUntil: null, lastAttempt: now };
-      
+
       userRecord.attempts = (userRecord.attempts || 0) + 1;
       userRecord.lastAttempt = now;
 
@@ -991,8 +992,13 @@ const BAR_CATALOG_BASE = [
       const [loginError, setLoginError] = useState("");
       const [authedUser, setAuthedUser] = useState(null);
 
-      // Estados de Logística
-      const [area, setArea] = useState(null);
+      // Estados de Logística (con restauración desde localStorage para evitar pantallas en blanco al actualizar)
+      const [area, setArea] = useState(() => {
+        try {
+          const saved = localStorage.getItem("aurora_active_area");
+          return (saved && LOGISTICA_AREAS[saved]) ? saved : null;
+        } catch (e) { return null; }
+      });
       const [fecha, setFecha] = useState(todayISO());
       const [encargado, setEncargado] = useState("");
       const [entries, setEntries] = useState({});
@@ -1006,18 +1012,23 @@ const BAR_CATALOG_BASE = [
       const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
       const [openHistoryExportMenu, setOpenHistoryExportMenu] = useState(null);
       const [overwriteModalInfo, setOverwriteModalInfo] = useState(null);
+      const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-      // Listener para cerrar el menú desplegable al hacer clic fuera o presionar ESC
+      // Listener para cerrar los menús desplegables al hacer clic fuera o presionar ESC
       useEffect(() => {
-        if (!openHistoryExportMenu) return;
+        if (!openHistoryExportMenu && !isUserMenuOpen) return;
         function handleOutsideClick(e) {
-          if (!e.target.closest(".history-export-container")) {
+          if (openHistoryExportMenu && !e.target.closest(".history-export-container")) {
             setOpenHistoryExportMenu(null);
+          }
+          if (isUserMenuOpen && !e.target.closest(".header-user-menu-container")) {
+            setIsUserMenuOpen(false);
           }
         }
         function handleKeyDown(e) {
           if (e.key === "Escape" || e.key === "Esc") {
             setOpenHistoryExportMenu(null);
+            setIsUserMenuOpen(false);
           }
         }
         document.addEventListener("mousedown", handleOutsideClick);
@@ -1026,7 +1037,7 @@ const BAR_CATALOG_BASE = [
           document.removeEventListener("mousedown", handleOutsideClick);
           document.removeEventListener("keydown", handleKeyDown);
         };
-      }, [openHistoryExportMenu]);
+      }, [openHistoryExportMenu, isUserMenuOpen]);
 
       // Estados e Integración con Google Drive
       const [gdriveToken, setGdriveToken] = useState(() => localStorage.getItem("aurora_gdrive_token") || "");
@@ -1065,13 +1076,13 @@ const BAR_CATALOG_BASE = [
                 fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
                   headers: { Authorization: `Bearer ${response.access_token}` }
                 })
-                .then(res => res.json())
-                .then(info => {
-                  if (info.email) {
-                    setGdriveEmail(info.email);
-                    localStorage.setItem("aurora_gdrive_email", info.email);
-                  }
-                }).catch(() => {});
+                  .then(res => res.json())
+                  .then(info => {
+                    if (info.email) {
+                      setGdriveEmail(info.email);
+                      localStorage.setItem("aurora_gdrive_email", info.email);
+                    }
+                  }).catch(() => { });
 
                 setGdriveStatusNote("¡Conectado con Google Drive!");
                 alert("¡Sesión iniciada con éxito! Tu aplicación AuroraSync respaldará tus exportaciones directamente a tu Google Drive.");
@@ -1271,7 +1282,12 @@ const BAR_CATALOG_BASE = [
       const [draft, setDraft] = useState(null);
 
       // Estados Checklist (operaciones)
-      const [checkArea, setCheckArea] = useState(null);
+      const [checkArea, setCheckArea] = useState(() => {
+        try {
+          const saved = localStorage.getItem("aurora_active_check_area");
+          return (saved && CHECKLIST_AREAS[saved]) ? saved : null;
+        } catch (e) { return null; }
+      });
       const [checkLocal, setCheckLocal] = useState("");
       const [checkSeccion, setCheckSeccion] = useState("");
       const [checkEvaluador, setCheckEvaluador] = useState("");
@@ -1297,7 +1313,25 @@ const BAR_CATALOG_BASE = [
       const [changePassError, setChangePassError] = useState("");
       const [changePassSuccess, setChangePassSuccess] = useState("");
 
-      const [successInfo, setSuccessInfo] = useState(null);
+      const [successInfo, setSuccessInfoState] = useState(() => {
+        try {
+          const saved = localStorage.getItem("aurora_success_info");
+          return saved ? JSON.parse(saved) : null;
+        } catch (e) { return null; }
+      });
+
+      function setSuccessInfo(info) {
+        setSuccessInfoState(info);
+        try {
+          if (info) {
+            localStorage.setItem("aurora_success_info", JSON.stringify(info));
+          } else {
+            localStorage.removeItem("aurora_success_info");
+          }
+        } catch (e) {}
+      }
+
+      const [catalogToast, setCatalogToast] = useState("");
       const [exportSuccessVisible, setExportSuccessVisible] = useState(false);
 
       const isAdmin = authedUser?.role === "admin";
@@ -1349,6 +1383,50 @@ const BAR_CATALOG_BASE = [
           if (needsUpdate) {
             await storageSet('aurora_users', upgraded);
           }
+
+          // Restaurar sesión de autorización activa (mantener credenciales y permisos al actualizar/F5)
+          const savedSession = await storageGet('aurora_session', null);
+          if (savedSession && savedSession.user) {
+            const found = upgraded.find(u => u.user === savedSession.user);
+            if (found) {
+              setAuthedUser(found);
+              setEncargado(sanitizeText(found.name).toUpperCase());
+              setCheckEvaluador(sanitizeText(found.name).toUpperCase());
+              await storageSet('aurora_session', { user: found.user });
+
+              const targetScreen = resolveScreenFromUrl();
+              if (targetScreen === "login") {
+                setScreen("hub");
+              } else if ((targetScreen === "adminPanel" || targetScreen === "rrhh") && found.role !== "admin") {
+                setScreen("hub");
+              } else if ((targetScreen === "logForm" || targetScreen === "logCatalogo") && !area) {
+                const savedArea = localStorage.getItem("aurora_active_area");
+                if (savedArea && LOGISTICA_AREAS[savedArea]) {
+                  setArea(savedArea);
+                  setScreen(targetScreen);
+                } else {
+                  setScreen("logistica");
+                }
+              } else if (targetScreen === "checklist" && !checkArea) {
+                const savedCheckArea = localStorage.getItem("aurora_active_check_area");
+                if (savedCheckArea && CHECKLIST_AREAS[savedCheckArea]) {
+                  setCheckArea(savedCheckArea);
+                  setScreen("checklist");
+                } else {
+                  setScreen("operaciones");
+                }
+              } else {
+                setScreen(targetScreen);
+              }
+            } else {
+              await storageSet('aurora_session', null);
+              setAuthedUser(null);
+              setScreen("login");
+            }
+          } else {
+            setAuthedUser(null);
+            setScreen("login");
+          }
         });
 
         getAuthSecurity().then((sec) => {
@@ -1366,6 +1444,51 @@ const BAR_CATALOG_BASE = [
         });
       }, []);
 
+      // Comprobación de cambios no guardados en formularios o catálogos
+      function hasUnsavedWork() {
+        if (screen === "logForm") {
+          if (loadStatus === "saved") return false;
+          const entriesList = Object.values(entries || {});
+          return entriesList.some((e) => {
+            if (!e) return false;
+            return Object.entries(e).some(([k, v]) => {
+              if (typeof v === "boolean") return v;
+              return v !== undefined && v !== null && String(v).trim() !== "";
+            });
+          });
+        }
+
+        if (screen === "logCatalogo") {
+          if (editingId && draft) {
+            return !!(draft.p?.trim() || draft.b1?.trim() || draft.b2?.trim() || draft.u?.trim());
+          }
+          if (editingTransformId && transformDraft) {
+            return !!(transformDraft.name?.trim());
+          }
+          return false;
+        }
+
+        if (screen === "checklist") {
+          const hasCheckRows = (checkRows || []).some(r => r.nombre?.trim() || (r.aspectos && r.aspectos.some(a => a)) || r.observacion?.trim());
+          if (checkArea === "SALON" && salonSubModule === "limpieza_orden") {
+            const hasLimp = Object.values(limpiezaEntries || {}).some(v => v !== undefined && v !== null && String(v).trim() !== "");
+            return hasLimp;
+          }
+          return hasCheckRows;
+        }
+
+        return false;
+      }
+
+      function safeSetScreen(targetScreen, force = false) {
+        if (!force && hasUnsavedWork()) {
+          const confirmed = window.confirm("⚠️ ADVERTENCIA: Se perderán datos no guardados al salir de este espacio.\n\n¿Estás seguro de que deseas salir sin guardar?");
+          if (!confirmed) return false;
+        }
+        setScreen(targetScreen);
+        return true;
+      }
+
       useEffect(() => {
         const target = VALID_SCREENS.has(screen) ? screen : "login";
         const currentHash = (window.location.hash || "").replace(/^#/, "").trim();
@@ -1380,15 +1503,62 @@ const BAR_CATALOG_BASE = [
         }
       }, [screen]);
 
+      // Guard para evitar pantallas en blanco si falta area, checkArea o successInfo al estar en logForm, logCatalogo, checklist o success
       useEffect(() => {
+        if ((screen === "logForm" || screen === "logCatalogo") && !area) {
+          const savedArea = localStorage.getItem("aurora_active_area");
+          if (savedArea && LOGISTICA_AREAS[savedArea]) {
+            setArea(savedArea);
+          } else {
+            setScreen("logistica");
+          }
+        } else if (screen === "checklist" && !checkArea) {
+          const savedCheckArea = localStorage.getItem("aurora_active_check_area");
+          if (savedCheckArea && CHECKLIST_AREAS[savedCheckArea]) {
+            setCheckArea(savedCheckArea);
+            setScreen("checklist");
+          } else {
+            setScreen("operaciones");
+          }
+        } else if (screen === "success" && !successInfo) {
+          const savedArea = localStorage.getItem("aurora_active_area");
+          if (savedArea && LOGISTICA_AREAS[savedArea]) {
+            setArea(savedArea);
+            setScreen("logForm");
+          } else {
+            setScreen("hub");
+          }
+        }
+      }, [screen, area, checkArea, successInfo]);
+
+      useEffect(() => {
+        const handleBeforeUnload = (e) => {
+          if (hasUnsavedWork()) {
+            e.preventDefault();
+            e.returnValue = "⚠️ Se perderán los datos no guardados al salir o actualizar este espacio.";
+            return e.returnValue;
+          }
+        };
+
         const handlePopState = (event) => {
+          if (hasUnsavedWork()) {
+            const confirmLeave = window.confirm("⚠️ ADVERTENCIA: Se perderán datos no guardados al salir de este espacio.\n\n¿Estás seguro de que deseas retroceder?");
+            if (!confirmLeave) {
+              window.history.pushState({ screen }, "", `${window.location.pathname}#${screen}`);
+              return;
+            }
+          }
           const nextScreen = event?.state?.screen || resolveScreenFromUrl();
           setScreen(VALID_SCREENS.has(nextScreen) ? nextScreen : "login");
         };
 
+        window.addEventListener("beforeunload", handleBeforeUnload);
         window.addEventListener("popstate", handlePopState);
-        return () => window.removeEventListener("popstate", handlePopState);
-      }, []);
+        return () => {
+          window.removeEventListener("beforeunload", handleBeforeUnload);
+          window.removeEventListener("popstate", handlePopState);
+        };
+      }, [screen, entries, loadStatus, editingId, draft, editingTransformId, transformDraft, checkRows, limpiezaEntries]);
 
       useEffect(() => {
         if (screen === "hub") {
@@ -1465,12 +1635,18 @@ const BAR_CATALOG_BASE = [
         }
 
         setAuthedUser(found);
+        await storageSet('aurora_session', { user: found.user });
         setEncargado(sanitizeText(found.name).toUpperCase());
         setCheckEvaluador(sanitizeText(found.name).toUpperCase());
         setScreen("hub");
       }
 
-      function handleLogout() {
+      async function handleLogout() {
+        if (hasUnsavedWork()) {
+          const confirmLogout = window.confirm("⚠️ ADVERTENCIA: Se perderán datos no guardados al salir de este espacio.\n\n¿Estás seguro de que deseas cerrar sesión?");
+          if (!confirmLogout) return;
+        }
+        await storageSet('aurora_session', null);
         setAuthedUser(null);
         setLoginUser("");
         setLoginPass("");
@@ -1534,7 +1710,13 @@ const BAR_CATALOG_BASE = [
 
       // LOGISTICA FUNCIONES
       function pickArea(key) {
-        setArea(key); setEntries({}); setFecha(todayISO()); setEncargado(sanitizeText(authedUser?.name?.toUpperCase() || "")); setQuery(""); setHeaderFilter("all"); setCategoryFilter("all"); setLoadStatus("idle");
+        if (screen === "logForm" && hasUnsavedWork()) {
+          const confirmLeave = window.confirm("⚠️ ADVERTENCIA: Se perderán datos no guardados al cambiar de área.\n\n¿Deseas cambiar de área sin guardar?");
+          if (!confirmLeave) return;
+        }
+        setArea(key);
+        try { localStorage.setItem("aurora_active_area", key); } catch (e) { }
+        setEntries({}); setFecha(todayISO()); setEncargado(sanitizeText(authedUser?.name?.toUpperCase() || "")); setQuery(""); setHeaderFilter("all"); setCategoryFilter("all"); setLoadStatus("idle");
         const cat = catalogByArea[key] || [];
         if (cat.length) setOpenCats({ [cat[0].c]: true });
         setScreen("logForm");
@@ -1607,6 +1789,8 @@ const BAR_CATALOG_BASE = [
         await storageSet('aurora_transform_options_v2', nextList);
         setEditingTransformId(null);
         setTransformDraft({ id: null, type: "A", name: "", unit: "kg" });
+        setCatalogToast("¡Producto de transformación guardado con éxito!");
+        setTimeout(() => setCatalogToast(""), 3500);
       }
 
       async function deleteTransformProduct(id) {
@@ -1634,7 +1818,7 @@ const BAR_CATALOG_BASE = [
       async function handleSaveData(forceOverwrite = false, saveAsNew = false) {
         if (!areaInfo) return false;
         const cleanTitle = sanitizeText(saveTitle, 80);
-        const cleanEncargado = sanitizeText(encargado, 80);
+        const cleanEncargado = sanitizeText(authedUser?.name || encargado || "Usuario", 80).toUpperCase();
         const cleanFecha = sanitizeDate(fecha);
 
         const previousHistory = await storageGet(`reqHistory:${area}`, []);
@@ -1646,20 +1830,32 @@ const BAR_CATALOG_BASE = [
           return false;
         }
 
+        const now = Date.now();
+        const dateStr = new Date(now).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const timeStr = new Date(now).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+        const savedAtFormatted = `${dateStr} · ${timeStr}`;
+
         let generatedTitle = cleanTitle;
         if (saveAsNew && existing) {
-          const timeStr = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-          generatedTitle = (cleanTitle || `Guardado ${cleanFecha}`) + ` (${timeStr})`;
+          generatedTitle = (cleanTitle || `Guardado ${cleanFecha}`) + ` (${timeStr.slice(0, 5)})`;
         } else if (!generatedTitle) {
-          generatedTitle = `Guardado ${new Date().toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
+          generatedTitle = existing?.title || `Guardado ${dateStr}`;
         }
-        
+
+        const isEditing = forceOverwrite && !!existing;
+
         const snapshot = {
           fecha: cleanFecha,
           encargado: cleanEncargado,
+          createdBy: isEditing ? (existing.createdBy || existing.encargado || cleanEncargado) : cleanEncargado,
+          createdAt: isEditing ? (existing.createdAt || existing.savedAt || now) : now,
+          isEdited: isEditing,
+          editedBy: isEditing ? cleanEncargado : (existing?.editedBy || null),
+          editedAt: isEditing ? now : (existing?.editedAt || null),
           entries,
-          savedAt: Date.now(),
-          savedBy: sanitizeText(authedUser?.name || "Usuario", 80),
+          savedAt: now,
+          savedAtFormatted: savedAtFormatted,
+          savedBy: cleanEncargado,
           title: generatedTitle,
           status: "ENVIADO"
         };
@@ -1671,7 +1867,7 @@ const BAR_CATALOG_BASE = [
         setHistorySaves(merged);
         setOverwriteModalInfo(null);
         setEntries({});
-        setEncargado(sanitizeText(authedUser?.name?.toUpperCase() || "", 80));
+        setEncargado(cleanEncargado);
         setSaveTitle("");
         setLoadStatus("empty");
         return true;
@@ -1709,7 +1905,7 @@ const BAR_CATALOG_BASE = [
         if (!generatedTitle) {
           generatedTitle = existing?.title || `Guardado ${new Date().toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
         }
-        
+
         const snapshot = {
           fecha: cleanFecha,
           encargado: cleanEncargado,
@@ -1897,7 +2093,7 @@ const BAR_CATALOG_BASE = [
       function restoreHistorySnapshot(snapshot) {
         if (!snapshot) return;
         setFecha(snapshot.fecha || todayISO());
-        setEncargado(snapshot.encargado || "");
+        setEncargado(sanitizeText(authedUser?.name || snapshot.encargado || "").toUpperCase());
         setEntries(snapshot.entries || {});
         setSaveTitle(snapshot.title || "");
         setLoadStatus("found");
@@ -2299,7 +2495,7 @@ const BAR_CATALOG_BASE = [
         if (!generatedTitle) {
           generatedTitle = existing?.title || `Guardado ${new Date().toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
         }
-        
+
         const snapshot = {
           fecha: cleanFecha,
           encargado: cleanEncargado,
@@ -2540,6 +2736,8 @@ const BAR_CATALOG_BASE = [
         setCatalogByArea({ ...catalogByArea, [area]: list });
         await storageSet(`catalog:${area}`, list);
         setEditingId(null); setDraft(null);
+        setCatalogToast("¡Producto guardado exitosamente en el catálogo!");
+        setTimeout(() => setCatalogToast(""), 3500);
       }
 
       async function deleteProduct(item, idx) {
@@ -2618,6 +2816,7 @@ const BAR_CATALOG_BASE = [
           if (authedUser?.user === editingUser.originalUser) {
             const updatedCurrent = { user: cleanUser, pass: finalPass, name: cleanName, role: cleanRole };
             setAuthedUser(updatedCurrent);
+            await storageSet('aurora_session', { user: cleanUser });
             setEncargado(cleanName.toUpperCase());
             setCheckEvaluador(cleanName.toUpperCase());
           }
@@ -2685,6 +2884,7 @@ const BAR_CATALOG_BASE = [
       // CHECKLIST DE OPERACIONES FUNCIONES
       function pickCheckArea(key) {
         setCheckArea(key);
+        try { localStorage.setItem("aurora_active_check_area", key); } catch (e) { }
         setCheckLocal("");
         setCheckSeccion("");
         setCheckEvaluador(sanitizeText(authedUser?.name || "").toUpperCase());
@@ -3026,6 +3226,9 @@ const BAR_CATALOG_BASE = [
           color: #051F20;
           -webkit-font-smoothing: antialiased;
           font-weight: 400;
+          overflow-x: hidden;
+          max-width: 100vw;
+          width: 100%;
         }
 
         /* Typography Helper Classes */
@@ -3060,16 +3263,19 @@ const BAR_CATALOG_BASE = [
         .app-main {
           padding: 32px 20px 80px;
           width: 100%;
+          max-width: 100vw;
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
           align-items: center;
           animation: fadeIn 0.3s ease-out;
+          overflow-x: hidden;
         }
 
         .area-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 20px;
+          gap: 16px;
           width: 100%;
           max-width: 920px;
         }
@@ -3089,6 +3295,10 @@ const BAR_CATALOG_BASE = [
           box-shadow: 0 4px 20px -2px rgba(5, 31, 32, 0.04), 0 2px 6px -1px rgba(5, 31, 32, 0.02);
           border-radius: 20px;
           transition: all 0.25s ease;
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
         }
 
         .glass-card:hover {
@@ -3104,11 +3314,13 @@ const BAR_CATALOG_BASE = [
           border: 1.5px solid rgba(142, 182, 155, 0.35);
           background: #FFFFFF;
           text-align: left;
-          padding: 26px 24px;
-          border-radius: 20px;
+          padding: 20px 22px;
+          border-radius: 18px;
           color: #051F20;
           overflow: hidden;
           box-shadow: 0 2px 10px -2px rgba(5, 31, 32, 0.03);
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .dept-card:hover:not(:disabled) {
@@ -3123,7 +3335,18 @@ const BAR_CATALOG_BASE = [
           background: rgba(255, 255, 255, 0.6);
         }
 
-        /* Fine Minimalist Table */
+        /* Fine Minimalist Table & Horizontal Touch Scroll */
+        .table-scroll {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          touch-action: pan-x pan-y;
+          position: relative;
+          box-sizing: border-box;
+        }
+
         .cat-table {
           width: 100%;
           border-collapse: separate;
@@ -3273,8 +3496,8 @@ const BAR_CATALOG_BASE = [
         }
 
         .header-logo-box {
-          width: 38px;
-          height: 38px;
+          width: 40px;
+          height: 40px;
           border-radius: 10px;
           background: #DAF1DE;
           display: flex;
@@ -3283,11 +3506,15 @@ const BAR_CATALOG_BASE = [
           border: 1.5px solid #8EB69B;
           flex-shrink: 0;
           transition: all 0.2s ease;
+          overflow: hidden;
+          padding: 2px;
+          box-sizing: border-box;
         }
 
         .header-logo-img {
-          width: 22px;
-          height: auto;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .header-brand-title {
@@ -3387,7 +3614,137 @@ const BAR_CATALOG_BASE = [
           border-color: #FCA5A5;
         }
 
-        @media (min-width: 768px) { .area-grid { grid-template-columns: repeat(2, 1fr); } }
+        .header-user-menu-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #FFFFFF;
+          border: 1.5px solid #8EB69B;
+          border-radius: 12px;
+          padding: 5px 10px 5px 6px;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(5, 31, 32, 0.05);
+          transition: all 0.2s ease;
+        }
+
+        .header-user-menu-btn:hover {
+          background: #DAF1DE;
+          border-color: #0B2B26;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 14px rgba(5, 31, 32, 0.1);
+        }
+
+        .user-menu-item {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 9px 12px;
+          border-radius: 10px;
+          border: none;
+          background: transparent;
+          color: #051F20;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          text-align: left;
+        }
+
+        .user-menu-item:hover {
+          background: #DAF1DE;
+          color: #0B2B26;
+        }
+
+        .user-menu-item.logout-item {
+          color: #DC2626;
+        }
+
+        .user-menu-item.logout-item:hover {
+          background: #FEE2E2;
+          color: #EF4444;
+        }
+
+        /* Hub Hero Banner Content */
+        .hub-hero-banner {
+          width: 100%;
+          height: 175px;
+          position: relative;
+          margin-top: 16px;
+          margin-bottom: 28px;
+        }
+
+        .hub-hero-content {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 36px;
+          right: 40px;
+          color: #FFFFFF;
+          z-index: 20;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: flex-start;
+          pointer-events: none;
+        }
+
+        .hub-hero-badge {
+          pointer-events: auto;
+          display: inline-block;
+          background: rgba(5, 31, 32, 0.45);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(142, 182, 155, 0.45);
+          color: #DAF1DE;
+          font-size: 12.5px;
+          font-weight: 600;
+          padding: 4px 13px;
+          border-radius: 16px;
+          letter-spacing: 1.1px;
+          text-transform: uppercase;
+          margin-bottom: 9px;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .hub-hero-title {
+          font-size: 30px;
+          margin: 0;
+          font-weight: 700;
+          color: #FFFFFF;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          line-height: 1.18;
+          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.75), 0 0 20px rgba(5, 31, 32, 0.9);
+        }
+
+        .hub-hero-dots {
+          pointer-events: auto;
+          display: flex;
+          gap: 6px;
+          margin-top: 14px;
+        }
+
+        .hub-hero-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.35);
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .hub-hero-dot.active {
+          width: 22px;
+          background: #DAF1DE;
+        }
+
+        @media (min-width: 768px) { .area-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; } }
         @media (max-width: 768px) {
           .app-header {
             padding: 8px 14px;
@@ -3396,12 +3753,15 @@ const BAR_CATALOG_BASE = [
             gap: 9px;
           }
           .header-logo-box {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
+            padding: 2px;
           }
           .header-logo-img {
-            width: 18px;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
           }
           .header-brand-title {
             font-size: 22px;
@@ -3438,12 +3798,119 @@ const BAR_CATALOG_BASE = [
             font-size: 11px;
             border-radius: 6px;
           }
+          .area-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .dept-card {
+            padding: 16px 18px !important;
+            border-radius: 16px !important;
+          }
+          .hub-section-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+          }
+          .hub-hero-banner {
+            height: 145px !important;
+            margin-top: 10px !important;
+            margin-bottom: 20px !important;
+          }
+          .hub-hero-content {
+            left: 20px !important;
+            right: 20px !important;
+          }
+          .hub-hero-title {
+            font-size: 21px !important;
+            gap: 6px !important;
+          }
+          .hub-hero-badge {
+            font-size: 10.5px !important;
+            padding: 3px 10px !important;
+            margin-bottom: 6px !important;
+            letter-spacing: 0.8px !important;
+          }
+          .hub-hero-dots {
+            margin-top: 11px !important;
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .app-main {
+            padding: 16px 10px 60px;
+            align-items: center;
+            max-width: 100vw;
+            overflow-x: hidden;
+          }
+          .glass-card, .dept-card, .login-card-container {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .cat-table {
+            min-width: 760px;
+          }
+          .cat-table input[type="text"][inputmode="decimal"],
+          .cat-table input[type="text"][inputmode="numeric"] {
+            font-size: 15px !important;
+            text-align: center;
+            padding: 8px 6px;
+            min-height: 36px;
+          }
+          .hub-hero-banner {
+            height: 160px !important;
+            margin-top: 12px !important;
+            margin-bottom: 22px !important;
+          }
+          .hub-hero-content {
+            left: 28px !important;
+            right: 30px !important;
+          }
+          .hub-hero-title {
+            font-size: 25px !important;
+          }
+          .hub-hero-badge {
+            font-size: 11.5px !important;
+            padding: 3.5px 11px !important;
+            margin-bottom: 7px !important;
+          }
         }
 
         @media (max-width: 560px) {
-          .app-main { padding: 16px 10px 60px; }
+          .app-main { padding: 12px 8px 60px; align-items: center; }
           .form-fields { grid-template-columns: 1fr; }
           .area-grid { grid-template-columns: 1fr; }
+          .dept-card {
+            padding: 14px 16px !important;
+            border-radius: 14px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .hub-hero-banner {
+            height: 130px !important;
+            margin-top: 8px !important;
+            margin-bottom: 16px !important;
+          }
+          .hub-hero-content {
+            left: 14px !important;
+            right: 14px !important;
+          }
+          .hub-hero-title {
+            font-size: 17.5px !important;
+            flex-wrap: wrap !important;
+            gap: 3px 6px !important;
+          }
+          .hub-hero-badge {
+            font-size: 9.5px !important;
+            padding: 2.5px 8px !important;
+            margin-bottom: 5px !important;
+            letter-spacing: 0.6px !important;
+          }
+          .hub-hero-dots {
+            margin-top: 9px !important;
+          }
         }
 
         @media (max-width: 440px) {
@@ -3479,7 +3946,7 @@ const BAR_CATALOG_BASE = [
           <header className="app-header">
             <div
               className="header-brand"
-              onClick={() => authedUser && setScreen("hub")}
+              onClick={() => authedUser && safeSetScreen("hub")}
               title={authedUser ? "Ir al Inicio" : "AuroraSync"}
               style={{ cursor: authedUser ? "pointer" : "default" }}
             >
@@ -3497,67 +3964,120 @@ const BAR_CATALOG_BASE = [
             </div>
 
             {authedUser && (
-              <div className="header-actions">
-                {isAdmin && (
-                  <span className="header-admin-badge" title="Rol de Administrador">
-                    <ShieldCheck size={13} color="#0B2B26" /> Admin
-                  </span>
-                )}
-
-                {/* Sincronización Nube / Respaldo Local (Solo Administradores) */}
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={exportFullBackupJson}
-                      className="header-logout-btn"
-                      style={{ background: "#DAF1DE", borderColor: "#8EB69B", color: "#0B2B26" }}
-                      title="Descargar copia de seguridad completa (.json) para guardar en tu carpeta de Google Drive / OneDrive (Solo Administradores)"
-                    >
-                      <CloudUpload size={13} color="#0B2B26" />
-                      <span>Respaldar BD</span>
-                    </button>
-
-                    <label
-                      className="header-logout-btn"
-                      style={{ background: "#FFFFFF", borderColor: "#8EB69B", color: "#0B2B26", cursor: "pointer" }}
-                      title="Restaurar una copia de seguridad (.json) desde tu Google Drive / OneDrive (Solo Administradores)"
-                    >
-                      <FileUp size={13} color="#0B2B26" />
-                      <span>Restaurar BD</span>
-                      <input type="file" accept=".json" onChange={restoreFullBackupJson} style={{ display: "none" }} />
-                    </label>
-                  </>
-                )}
+              <div className="header-user-menu-container" style={{ position: "relative" }}>
                 <button
-                  onClick={() => {
-                    setIsChangePassOpen(true);
-                    setChangePassError("");
-                    setChangePassSuccess("");
-                    setChangePassForm({ currentPass: "", newPass: "", confirmPass: "" });
-                  }}
-                  title="Cambiar mi contraseña"
-                  className="header-logout-btn"
-                  style={{ background: "#FFFFFF", borderColor: "#8EB69B" }}
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="header-user-menu-btn"
+                  title="Menú de cuenta y opciones"
                 >
-                  <Key size={12} color="#0B2B26" />
-                  <span>Contraseña</span>
-                </button>
-                <div className="header-user-card">
-                  <div className="header-user-avatar" title={`Usuario: ${authedUser.user}`}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: "#DAF1DE", color: "#0B2B26",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 700, fontSize: 13, border: "1px solid #8EB69B", flexShrink: 0
+                  }}>
                     {authedUser.name.charAt(0).toUpperCase()}
                   </div>
-                  <span className="header-user-name" title={authedUser.name}>
-                    {authedUser.name.split(" ")[0]}
-                  </span>
-                  <button
-                    onClick={handleLogout}
-                    title="Cerrar sesión"
-                    className="header-logout-btn"
+
+                  <div style={{ display: "flex", flexDirection: "column", textAlign: "left", lineHeight: 1.1 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: "#051F20" }}>
+                      {authedUser.name.split(" ")[0]}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "#235347" }}>
+                      {isAdmin ? "Admin" : "Básico"}
+                    </span>
+                  </div>
+
+                  <ChevronDown size={15} color="#0B2B26" style={{ transform: isUserMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease", marginLeft: 2 }} />
+                </button>
+
+                {/* Popover Menú Desplegable Elegante Unificado */}
+                {isUserMenuOpen && (
+                  <div
+                    className="glass-card"
+                    style={{
+                      position: "absolute", top: "calc(100% + 8px)", right: 0,
+                      width: 250, background: "#FFFFFF", borderRadius: 16,
+                      border: "1.5px solid #8EB69B", boxShadow: "0 12px 35px rgba(5, 31, 32, 0.2)",
+                      zIndex: 10000, padding: 8, animation: "scaleIn 0.15s ease-out",
+                      display: "flex", flexDirection: "column", gap: 3
+                    }}
                   >
-                    <LogIn size={12} style={{ transform: "rotate(180deg)" }} />
-                    <span>Salir</span>
-                  </button>
-                </div>
+                    {/* Tarjeta Perfil Info */}
+                    <div style={{ padding: "10px 12px", background: "#DAF1DE", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, border: "1px solid #8EB69B" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#0B2B26", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                        {authedUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ overflow: "hidden" }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#051F20", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authedUser.name}</div>
+                        <div style={{ fontSize: 11, color: "#235347", fontWeight: 600 }}>@{authedUser.user} · {isAdmin ? "Administrador" : "Usuario Básico"}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ height: 1, background: "rgba(142, 182, 155, 0.3)", margin: "4px 0" }} />
+
+                    {/* Opciones del menú */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => { safeSetScreen("adminPanel"); setIsUserMenuOpen(false); }}
+                        className="user-menu-item"
+                        title="Ir al panel de usuarios y permisos"
+                      >
+                        <ShieldCheck size={16} color="#0B2B26" />
+                        <span>Panel de Administración</span>
+                      </button>
+                    )}
+
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => { exportFullBackupJson(); setIsUserMenuOpen(false); }}
+                          className="user-menu-item"
+                          title="Descargar copia de seguridad completa (.json)"
+                        >
+                          <CloudUpload size={16} color="#0B2B26" />
+                          <span>Respaldar BD</span>
+                        </button>
+
+                        <label
+                          className="user-menu-item"
+                          style={{ cursor: "pointer" }}
+                          title="Restaurar copia de seguridad (.json)"
+                        >
+                          <FileUp size={16} color="#0B2B26" />
+                          <span>Restaurar BD</span>
+                          <input type="file" accept=".json" onChange={(e) => { restoreFullBackupJson(e); setIsUserMenuOpen(false); }} style={{ display: "none" }} />
+                        </label>
+                      </>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setIsChangePassOpen(true);
+                        setChangePassError("");
+                        setChangePassSuccess("");
+                        setChangePassForm({ currentPass: "", newPass: "", confirmPass: "" });
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="user-menu-item"
+                      title="Cambiar mi contraseña"
+                    >
+                      <Key size={16} color="#0B2B26" />
+                      <span>Cambiar Contraseña</span>
+                    </button>
+
+                    <div style={{ height: 1, background: "rgba(142, 182, 155, 0.3)", margin: "4px 0" }} />
+
+                    <button
+                      onClick={() => { handleLogout(); setIsUserMenuOpen(false); }}
+                      className="user-menu-item logout-item"
+                      title="Cerrar sesión"
+                    >
+                      <LogIn size={16} style={{ transform: "rotate(180deg)" }} />
+                      <span>Cerrar Sesión</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </header>
@@ -3571,11 +4091,12 @@ const BAR_CATALOG_BASE = [
               <div className="glass-card" style={{ width: "100%", maxWidth: 400, padding: "40px 32px", background: "#FFFFFF" }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{
-                    width: 86, height: 86, borderRadius: 24, background: "#DAF1DE",
+                    width: 96, height: 96, borderRadius: 24, background: "#DAF1DE",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    border: "1.5px solid #8EB69B", boxShadow: "0 8px 20px rgba(11, 43, 38, 0.08)"
+                    border: "1.5px solid #8EB69B", boxShadow: "0 8px 20px rgba(11, 43, 38, 0.08)",
+                    padding: 6, overflow: "hidden", boxSizing: "border-box"
                   }}>
-                    <img src={LOGO_URI} alt="Aurora" style={{ width: "70%", height: "auto" }} />
+                    <img src={LOGO_URI} alt="Aurora" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                   </div>
                 </div>
 
@@ -3652,9 +4173,7 @@ const BAR_CATALOG_BASE = [
             {screen === "hub" && (
               <div style={{ width: "100%", maxWidth: 920, marginTop: 10 }}>
                 {/* Hero Banner Elegante con Pop-out 3D */}
-                <div style={{
-                  width: "100%", height: "200px", position: "relative", marginBottom: "40px", marginTop: "35px"
-                }}>
+                <div className="hub-hero-banner">
                   <div style={{
                     position: "absolute", inset: 0, borderRadius: "24px", overflow: "hidden",
                     background: "linear-gradient(135deg, #051F20 0%, #0B2B26 60%, #163832 100%)",
@@ -3681,37 +4200,28 @@ const BAR_CATALOG_BASE = [
                     onError={(e) => e.target.style.display = 'none'}
                   />
 
-                  <div style={{ position: "absolute", bottom: "30px", left: "36px", color: "#FFF", zIndex: 20 }}>
-                    <span style={{
-                      display: "inline-block", background: "rgba(218, 241, 222, 0.2)",
-                      border: "1px solid rgba(142, 182, 155, 0.4)",
-                      color: "#DAF1DE", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 16,
-                      letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8
-                    }}>
+                  <div className="hub-hero-content">
+                    <span className="hub-hero-badge">
                       Bienvenido, {authedUser?.name}
                     </span>
-                    <h2 className="heading-fine" style={{ fontSize: 32, margin: 0, fontWeight: 700, color: "#FFFFFF", display: "flex", alignItems: "center", gap: 10 }}>
+                    <h2 className="heading-fine hub-hero-title">
                       Rol Activo: <span style={{ color: "#DAF1DE" }}>{HERO_ROLES[roleIndex].title}</span>
                     </h2>
 
-                    <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+                    <div className="hub-hero-dots">
                       {HERO_ROLES.map((r, idx) => (
                         <div
                           key={r.title}
                           onClick={() => setRoleIndex(idx)}
-                          style={{
-                            width: idx === roleIndex ? 20 : 6, height: 6, borderRadius: 3,
-                            background: idx === roleIndex ? "#DAF1DE" : "rgba(255,255,255,0.3)",
-                            transition: "all 0.3s ease", cursor: "pointer"
-                          }}
+                          className={`hub-hero-dot ${idx === roleIndex ? 'active' : ''}`}
                         />
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <h1 className="heading-fine" style={{ fontSize: 24, margin: 0 }}>
+                <div className="hub-section-header" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
+                  <h1 className="heading-fine" style={{ fontSize: 24, margin: 0, lineHeight: 1.15 }}>
                     Departamentos de Gestión
                   </h1>
                   <span style={{ fontSize: 12.5, color: "#235347", fontWeight: 500 }}>
@@ -3795,7 +4305,7 @@ const BAR_CATALOG_BASE = [
             {screen === "adminPanel" && isAdmin && (
               <div style={{ width: "100%", maxWidth: 900, marginTop: 10 }}>
                 <button
-                  onClick={() => setScreen("hub")}
+                  onClick={() => safeSetScreen("hub")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -4017,7 +4527,7 @@ const BAR_CATALOG_BASE = [
             {screen === "logistica" && (
               <div style={{ width: "100%", maxWidth: 900, marginTop: 10 }}>
                 <button
-                  onClick={() => setScreen("hub")}
+                  onClick={() => safeSetScreen("hub")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -4072,7 +4582,7 @@ const BAR_CATALOG_BASE = [
             {screen === "logCatalogo" && areaInfo && authedUser && (
               <div style={{ width: "100%", maxWidth: 920, marginTop: 10 }}>
                 <button
-                  onClick={() => setScreen("logForm")}
+                  onClick={() => safeSetScreen("logForm")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -4089,6 +4599,12 @@ const BAR_CATALOG_BASE = [
                     </h1>
                   </div>
                 </div>
+
+                {catalogToast && (
+                  <div style={{ background: "#DAF1DE", border: "1.5px solid #8EB69B", color: "#0B2B26", borderRadius: 12, padding: "12px 16px", marginBottom: 18, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(11,43,38,0.08)" }}>
+                    <CheckCircle2 size={18} color="#0B2B26" /> {catalogToast}
+                  </div>
+                )}
 
                 {isTransformation ? (
                   <div>
@@ -4192,8 +4708,8 @@ const BAR_CATALOG_BASE = [
                             </datalist>
                           </label>
                           <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Producto<input className="admin-input" value={draft.p} onChange={(e) => setDraft({ ...draft, p: e.target.value })} /></label>
-                          <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Base 1<input className="admin-input" value={draft.b1} onChange={(e) => setDraft({ ...draft, b1: e.target.value })} /></label>
-                          <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Base 2<input className="admin-input" value={draft.b2} onChange={(e) => setDraft({ ...draft, b2: e.target.value })} /></label>
+                          <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Base 1<input className="admin-input" type="text" inputMode="decimal" pattern="[0-9.]*" value={draft.b1} onChange={(e) => setDraft({ ...draft, b1: e.target.value })} placeholder="0" /></label>
+                          <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Base 2<input className="admin-input" type="text" inputMode="decimal" pattern="[0-9.]*" value={draft.b2} onChange={(e) => setDraft({ ...draft, b2: e.target.value })} placeholder="0" /></label>
                           <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>{areaInfo.unidLabel}<input className="admin-input" value={draft.u} onChange={(e) => setDraft({ ...draft, u: e.target.value })} /></label>
                           {areaInfo.hasFrecuencia && <label style={{ fontSize: 12, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 4 }}>Frecuencia<input className="admin-input" value={draft.f} onChange={(e) => setDraft({ ...draft, f: e.target.value })} /></label>}
                         </div>
@@ -4236,7 +4752,7 @@ const BAR_CATALOG_BASE = [
             {screen === "logForm" && areaInfo && (
               <div style={{ width: "100%", maxWidth: 1200 }}>
                 <button
-                  onClick={() => setScreen("logistica")}
+                  onClick={() => safeSetScreen("logistica")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -4255,7 +4771,7 @@ const BAR_CATALOG_BASE = [
                       REQUERIMIENTO DE {areaInfo.label.toUpperCase()}
                     </h1>
                     {authedUser && (
-                      <button onClick={() => setScreen("logCatalogo")} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "1.5px solid #8EB69B", color: areaInfo.accent, borderRadius: 10, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => safeSetScreen("logCatalogo")} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "1.5px solid #8EB69B", color: areaInfo.accent, borderRadius: 10, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                         <Plus size={15} /> {isTransformation ? "Administrar Productos A / B" : "Agregar Productos"}
                       </button>
                     )}
@@ -4267,8 +4783,14 @@ const BAR_CATALOG_BASE = [
                       <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="admin-input" />
                     </label>
                     <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
-                      Encargado
-                      <input value={encargado} onChange={(e) => setEncargado(e.target.value)} placeholder="Nombre del responsable" className="admin-input" />
+                      Encargado (Fijo por Usuario)
+                      <input
+                        value={encargado || sanitizeText(authedUser?.name || "").toUpperCase()}
+                        readOnly
+                        title="El nombre del encargado queda fijo asignado a tu usuario y no se puede modificar"
+                        className="admin-input"
+                        style={{ background: "#DAF1DE", color: "#0B2B26", fontWeight: 700, cursor: "not-allowed", border: "1.5px solid #8EB69B" }}
+                      />
                     </label>
                   </div>
                 </div>
@@ -4299,14 +4821,19 @@ const BAR_CATALOG_BASE = [
                       historySaves.map((snapshot, idx) => {
                         const cardId = `${snapshot.fecha}-${snapshot.savedAt || idx}`;
                         const isMenuOpen = openHistoryExportMenu === cardId;
+                        const formattedTime = snapshot.savedAtFormatted || (snapshot.savedAt ? `${snapshot.fecha} · ${new Date(snapshot.savedAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}` : snapshot.fecha);
+                        const creatorName = (snapshot.createdBy || snapshot.encargado || "Usuario").toUpperCase();
+                        const isEdited = snapshot.isEdited || !!snapshot.editedBy;
+                        const editorName = (snapshot.editedBy || (isEdited ? authedUser?.name : null) || "").toUpperCase();
+
                         return (
                           <div
                             key={cardId}
                             style={{
                               border: "1.5px solid #8EB69B", borderRadius: 14, background: "#FFFFFF",
                               color: "#051F20", padding: "12px 14px", fontSize: 12, fontWeight: 600,
-                              display: "flex", flexDirection: "column", gap: 6, minWidth: 230, textAlign: "left",
-                              position: "relative"
+                              display: "flex", flexDirection: "column", gap: 6, minWidth: 240, textAlign: "left",
+                              position: "relative", boxShadow: "0 2px 8px rgba(5, 31, 32, 0.04)"
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -4328,8 +4855,29 @@ const BAR_CATALOG_BASE = [
                               )}
                             </div>
 
-                            <span style={{ color: "#235347", fontWeight: 500, fontSize: 11.5 }}>{snapshot.fecha || "Sin fecha"}</span>
-                            <span style={{ color: "#235347", fontWeight: 500, fontSize: 11.5 }}>{snapshot.encargado || "Sin encargado"}</span>
+                            {/* Hora y Fecha de Guardado */}
+                            <div style={{ color: "#235347", fontWeight: 500, fontSize: 11.5, display: "flex", alignItems: "center", gap: 5 }}>
+                              <Calendar size={13} color="#8EB69B" />
+                              <span>{formattedTime}</span>
+                            </div>
+
+                            {/* Encargado Creador */}
+                            <div style={{ color: "#0B2B26", fontWeight: 600, fontSize: 11.5, display: "flex", alignItems: "center", gap: 5 }}>
+                              <User size={13} color="#0B2B26" />
+                              <span>Generado por: <strong>{creatorName}</strong></span>
+                            </div>
+
+                            {/* Badge cuando fue editado */}
+                            {isEdited && editorName && (
+                              <div style={{
+                                background: "#DAF1DE", color: "#0B2B26", padding: "3.5px 8px",
+                                borderRadius: 8, fontSize: 10.5, fontWeight: 700, display: "flex",
+                                alignItems: "center", gap: 5, border: "1px solid #8EB69B", marginTop: 1
+                              }}>
+                                <Pencil size={11} color="#0B2B26" />
+                                <span>EDITADO POR: {editorName}</span>
+                              </div>
+                            )}
 
                             {/* Acciones dentro del documento guardado: Editar y Exportar */}
                             <div style={{ display: "flex", gap: 6, marginTop: 4, position: "relative" }}>
@@ -4477,13 +5025,14 @@ const BAR_CATALOG_BASE = [
                                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                                 background: isOpen ? areaInfo.accentSoft : "#FFFFFF", border: "none",
                                 color: isOpen ? areaInfo.accent : "#051F20", padding: "16px 20px",
-                                fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left", transition: "background 0.2s"
+                                fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left", transition: "background 0.2s",
+                                gap: 8, boxSizing: "border-box"
                               }}
                             >
-                              <span className="heading-fine">
-                                {group.categoria} <span style={{ color: "#235347", fontSize: 12, fontWeight: 500, marginLeft: 8 }}>({group.items.length} ítems)</span>
+                              <span className="heading-fine" style={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "break-word", wordBreak: "break-word", lineHeight: 1.3 }}>
+                                {group.categoria} <span style={{ color: "#235347", fontSize: 12, fontWeight: 500, marginLeft: 6, display: "inline-block" }}>({group.items.length} ítems)</span>
                               </span>
-                              <ChevronDown size={18} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+                              <ChevronDown size={18} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0, marginLeft: 6 }} />
                             </button>
                           )}
                           {isOpen && (
@@ -4525,7 +5074,7 @@ const BAR_CATALOG_BASE = [
                                         </td>
                                         {hasBase2 && <td><span style={{ color: "#235347", fontWeight: 600 }}>{it.b2}</span></td>}
                                         {isTransformation && <td><span style={{ color: "#235347", fontWeight: 600 }}>{medidaA}</span></td>}
-                                        {isTransformation && <td><input type="text" value={e.cantidadA || ""} onChange={(ev) => updateEntry(key, "cantidadA", ev.target.value)} placeholder="0" /></td>}
+                                        {isTransformation && <td><input type="text" inputMode="decimal" pattern="[0-9.]*" value={e.cantidadA || ""} onChange={(ev) => updateEntry(key, "cantidadA", ev.target.value)} placeholder="0" /></td>}
                                         {!isTransformation && <td><span style={{ background: "#DAF1DE", padding: "3px 6px", borderRadius: 4, fontSize: 10.5, fontWeight: 700, color: "#0B2B26" }}>{it.u}</span></td>}
                                         {areaInfo.hasFrecuencia && <td><span style={{ color: "#235347", fontSize: 11.5 }}>{it.f}</span></td>}
                                         {!isTransformation && <td className="prod-cell">{it.p}</td>}
@@ -4545,7 +5094,7 @@ const BAR_CATALOG_BASE = [
                                             ) : c.type === "checkbox" ? (
                                               <input type="checkbox" checked={!!e[c.key]} onChange={(ev) => updateEntry(key, c.key, ev.target.checked)} style={{ width: 18, height: 18, accentColor: "#0B2B26", cursor: "pointer" }} />
                                             ) : (
-                                              <input type="text" value={e[c.key]} onChange={(ev) => updateEntry(key, c.key, ev.target.value)} placeholder="0" />
+                                              <input type="text" inputMode="decimal" pattern="[0-9.]*" value={e[c.key]} onChange={(ev) => updateEntry(key, c.key, ev.target.value)} placeholder="0" />
                                             )}
                                           </td>
                                         ))}
@@ -4616,7 +5165,7 @@ const BAR_CATALOG_BASE = [
             {screen === "operaciones" && (
               <div style={{ width: "100%", maxWidth: 900, marginTop: 10 }}>
                 <button
-                  onClick={() => setScreen("hub")}
+                  onClick={() => safeSetScreen("hub")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -4662,7 +5211,7 @@ const BAR_CATALOG_BASE = [
             {screen === "checklist" && checkAreaInfo && checkAspectos && (
               <div style={{ width: "100%", maxWidth: 1200 }}>
                 <button
-                  onClick={() => setScreen("operaciones")}
+                  onClick={() => safeSetScreen("operaciones")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -5013,7 +5562,7 @@ const BAR_CATALOG_BASE = [
             {screen === "rrhh" && (
               <div style={{ width: "100%", maxWidth: 820, marginTop: 10 }}>
                 <button
-                  onClick={() => setScreen("hub")}
+                  onClick={() => safeSetScreen("hub")}
                   style={{
                     background: "#FFFFFF", border: "1.5px solid #8EB69B",
                     borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
@@ -5058,16 +5607,28 @@ const BAR_CATALOG_BASE = [
             {/* ========================================================================= */}
             {/* PANTALLA SUCCESS (ÉXITO) ELEGANTE */}
             {/* ========================================================================= */}
-            {screen === "success" && successInfo && (
+            {screen === "success" && (
               <div className="glass-card" style={{ width: "100%", maxWidth: 440, margin: "50px auto 0", textAlign: "center", padding: "40px 32px", background: "#FFFFFF" }}>
                 <div style={{ width: 60, height: 60, borderRadius: "50%", background: "#DAF1DE", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", border: "1.5px solid #8EB69B" }}>
                   <CheckCircle2 size={30} color="#0B2B26" />
                 </div>
-                <h1 className="heading-fine" style={{ fontSize: 24, margin: "0 0 12px" }}>{successInfo.title}</h1>
+                <h1 className="heading-fine" style={{ fontSize: 24, margin: "0 0 12px" }}>
+                  {successInfo?.title || "Operación Completada"}
+                </h1>
                 <p style={{ color: "#235347", fontSize: 14, marginBottom: 28, lineHeight: 1.5 }}>
-                  Se descargó <strong style={{ color: "#051F20" }}>{successInfo.filename}</strong>. <br /><br />{successInfo.note}
+                  {successInfo?.filename ? (
+                    <>Se procesó <strong style={{ color: "#051F20" }}>{successInfo.filename}</strong>. <br /><br /></>
+                  ) : null}
+                  {successInfo?.note || "El registro fue guardado y procesado exitosamente."}
                 </p>
-                <button onClick={() => setScreen(successInfo.back)} style={{ background: "#0B2B26", border: "none", color: "#FFFFFF", borderRadius: 10, padding: "12px 24px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                <button
+                  onClick={() => {
+                    const backTarget = successInfo?.back || "logForm";
+                    setSuccessInfo(null);
+                    safeSetScreen(backTarget, true);
+                  }}
+                  style={{ background: "#0B2B26", border: "none", color: "#FFFFFF", borderRadius: 10, padding: "12px 24px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                >
                   Volver al Formulario
                 </button>
               </div>
