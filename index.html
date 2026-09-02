@@ -820,7 +820,7 @@
 
     // Configuración e Inicialización de Supabase Cloud Database
     const SUPABASE_URL = "https://bpcakpnucwwyvmyzifnw.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_secret_6iOiKVgq07J5jyOstUFwLg_YFsqE0YG";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwY2FrcG51Y3d3eXZteXppZm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMjMxNDMsImV4cCI6MjEwMzg5OTE0M30.A0n3W0tu494HqUkDEcZ-CyTuLqie1_n5umNqoBVfSQ8";
     let supabaseClient = null;
     try {
       if (window.supabase && typeof window.supabase.createClient === "function") {
@@ -861,6 +861,29 @@
             .maybeSingle();
 
           if (!error && data && data.value !== undefined && data.value !== null) {
+            // Si es un historial, combinar inteligentemente con cualquier historial local previo no subido
+            if (key.startsWith("reqHistory:") && Array.isArray(data.value)) {
+              try {
+                const localRaw = localStorage.getItem(key);
+                if (localRaw) {
+                  const localList = JSON.parse(localRaw);
+                  if (Array.isArray(localList) && localList.length > 0) {
+                    const map = new Map();
+                    [...data.value, ...localList].forEach(item => {
+                      const uid = item?.id || `${item?.fecha}_${item?.savedAt}` || JSON.stringify(item);
+                      if (uid) map.set(uid, item);
+                    });
+                    const merged = Array.from(map.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+                    if (merged.length > data.value.length) {
+                      supabaseClient.from("aurora_store").upsert({ key, value: merged }).then(() => {});
+                    }
+                    try { localStorage.setItem(key, JSON.stringify(merged)); } catch (e) {}
+                    return merged;
+                  }
+                }
+              } catch (e) {}
+            }
+
             try { localStorage.setItem(key, JSON.stringify(data.value)); } catch (e) { }
             return data.value;
           }
@@ -915,6 +938,47 @@
         }
       }
       return true;
+    }
+
+    // Migración automática: sube los datos guardados previamente en este navegador a la nube
+    async function autoMigrateLocalDataToSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const keysToMigrate = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && !LOCAL_ONLY_KEYS.has(k) && !k.startsWith("aurora_gdrive") && !k.startsWith("__")) {
+            keysToMigrate.push(k);
+          }
+        }
+        for (const k of keysToMigrate) {
+          try {
+            const raw = localStorage.getItem(k);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed === undefined || parsed === null) continue;
+
+            if (k.startsWith("reqHistory:")) {
+              const { data: remote } = await supabaseClient.from("aurora_store").select("value").eq("key", k).maybeSingle();
+              const remoteList = Array.isArray(remote?.value) ? remote.value : [];
+              const localList = Array.isArray(parsed) ? parsed : [];
+              const map = new Map();
+              [...remoteList, ...localList].forEach(item => {
+                const uniqueKey = item?.id || `${item?.fecha}_${item?.savedAt}` || JSON.stringify(item);
+                if (uniqueKey) map.set(uniqueKey, item);
+              });
+              const merged = Array.from(map.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+              await supabaseClient.from("aurora_store").upsert({ key: k, value: merged });
+              try { localStorage.setItem(k, JSON.stringify(merged)); } catch (e) { }
+            } else {
+              const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
+              if (!remote) {
+                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed });
+              }
+            }
+          } catch (e) { }
+        }
+      } catch (err) { }
     }
 
     // Control de intentos fallidos y bloqueo temporal
@@ -1528,6 +1592,9 @@
             setTransformOptions(loaded);
           }
         });
+
+        // Migrar automáticamente el historial local previo a Supabase
+        autoMigrateLocalDataToSupabase();
       }, []);
 
       // Sincronización en Tiempo Real con Supabase Cloud
