@@ -44,7 +44,7 @@
       FolderDown, Save, X, Boxes, ClipboardCheck, Beef, Scissors,
       FileUp, FileDown, FileText, Building2, UserPlus, Settings, AlertCircle, Key,
       Send, FileSpreadsheet, AlertTriangle, Filter, Cloud, CloudUpload, CloudOff, RefreshCw,
-      Calendar
+      Calendar, Clock
     } from "lucide-react";
 
     // Usuarios por defecto con contraseñas hasheadas criptográficamente (SHA-256 + Salt)
@@ -732,6 +732,9 @@
 
     const MAX_LOGIN_ATTEMPTS = 5;
     const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutos de bloqueo temporal
+    const DEFAULT_SESSION_DURATION_MINUTES = 120; // 2 horas de vigencia por defecto
+    const DEFAULT_SESSION_DURATION_MS = DEFAULT_SESSION_DURATION_MINUTES * 60 * 1000;
+    const SESSION_WARNING_BEFORE_EXPIRATION_MS = 2 * 60 * 1000; // Alerta 2 minutos antes de expirar
 
     // Generar Salt criptográficamente seguro de 16 bytes
     function generateCryptoSalt() {
@@ -788,14 +791,22 @@
       return s.trim().slice(0, maxLength);
     }
 
-    // Sanitización de nombres de usuario
+    // Sanitización de nombres de usuario (Soporta ñ, Ñ y caracteres en español)
     function sanitizeUsername(str) {
       if (!str) return "";
       return String(str)
         .toLowerCase()
-        .replace(/[^a-z0-9_.-]/g, '')
+        .replace(/[^a-z0-9_.\-ñáéíóúü]/gi, '')
         .trim()
         .slice(0, 30);
+    }
+    // Normalización de texto para búsquedas flexibles (soporta ñ, acentos y mayúsculas/minúsculas)
+    function normalizeForSearch(str) {
+      if (!str) return "";
+      return String(str)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
     }
 
     // Sanitización y validación estricta de números
@@ -1177,6 +1188,24 @@
       await clearLoginAttempts(username);
     }
 
+    // Configuración de Expiración de Sesión y Tiempos de Vigencia
+    const SESSION_DURATION_PRESETS = [
+      { minutes: 15, label: "15 minutos (Alta seguridad)" },
+      { minutes: 30, label: "30 minutos" },
+      { minutes: 60, label: "1 hora" },
+      { minutes: 120, label: "2 horas (Recomendado)" },
+      { minutes: 240, label: "4 horas" },
+      { minutes: 480, label: "8 horas (Turno completo)" }
+    ];
+
+    async function getSessionConfig() {
+      return await storageGet("aurora_session_config", { durationMinutes: DEFAULT_SESSION_DURATION_MINUTES });
+    }
+
+    async function saveSessionConfig(config) {
+      return await storageSet("aurora_session_config", config);
+    }
+
     function getXLSXLib() {
       if (typeof XLSX !== "undefined") {
         if (XLSX.utils && XLSX.write) return XLSX;
@@ -1302,6 +1331,10 @@
       const [openHistoryExportMenu, setOpenHistoryExportMenu] = useState(null);
       const [overwriteModalInfo, setOverwriteModalInfo] = useState(null);
       const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+      const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
+      const [sessionRemainingSeconds, setSessionRemainingSeconds] = useState(null);
+      const [showSessionWarningModal, setShowSessionWarningModal] = useState(false);
+      const [sessionDurationConfig, setSessionDurationConfig] = useState(DEFAULT_SESSION_DURATION_MINUTES);
 
       // Listener para cerrar los menús desplegables al hacer clic fuera o presionar ESC
       useEffect(() => {
@@ -1677,15 +1710,42 @@
             await storageSet('aurora_users', upgraded);
           }
 
-          // Restaurar sesión de autorización activa (mantener credenciales y permisos al actualizar/F5)
+          // Cargar configuración de duración de sesiones
+          const sConf = await getSessionConfig();
+          const durationMins = sConf.durationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
+          setSessionDurationConfig(durationMins);
+
+          // Restaurar sesión de autorización activa (mantener credenciales y verificar expiración)
           const savedSession = await storageGet('aurora_session', null);
+          const now = Date.now();
           if (savedSession && savedSession.user) {
+            // Comprobar si la sesión guardada ya expiró
+            if (savedSession.expiresAt && now >= savedSession.expiresAt) {
+              await storageSet('aurora_session', null);
+              setAuthedUser(null);
+              setSessionExpiresAt(null);
+              setLoginError("Tu sesión ha expirado por límite de tiempo. Por favor, ingresa tus credenciales nuevamente.");
+              setScreen("login");
+              return;
+            }
+
             const found = upgraded.find(u => u.user === savedSession.user);
             if (found) {
               setAuthedUser(found);
               setEncargado(sanitizeText(found.name).toUpperCase());
               setCheckEvaluador(sanitizeText(found.name).toUpperCase());
-              await storageSet('aurora_session', { user: found.user });
+
+              const sessionExpiry = savedSession.expiresAt || (now + (durationMins * 60 * 1000));
+              setSessionExpiresAt(sessionExpiry);
+              setSessionRemainingSeconds(Math.max(0, Math.floor((sessionExpiry - now) / 1000)));
+
+              await storageSet('aurora_session', {
+                ...savedSession,
+                user: found.user,
+                lastActiveAt: now,
+                expiresAt: sessionExpiry,
+                durationMinutes: durationMins
+              });
 
               const targetScreen = resolveScreenFromUrl();
               if (targetScreen === "login") {
@@ -1714,10 +1774,12 @@
             } else {
               await storageSet('aurora_session', null);
               setAuthedUser(null);
+              setSessionExpiresAt(null);
               setScreen("login");
             }
           } else {
             setAuthedUser(null);
+            setSessionExpiresAt(null);
             setScreen("login");
           }
         });
@@ -1984,25 +2046,112 @@
           await storageSet('aurora_users', updatedUsers);
         }
 
+        const now = Date.now();
+        const sConf = await getSessionConfig();
+        const durationMinutes = sConf.durationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
+        const expiresAt = now + (durationMinutes * 60 * 1000);
+
         setAuthedUser(found);
-        await storageSet('aurora_session', { user: found.user });
+        setSessionExpiresAt(expiresAt);
+        setSessionRemainingSeconds(durationMinutes * 60);
+        setShowSessionWarningModal(false);
+
+        await storageSet('aurora_session', {
+          user: found.user,
+          loginAt: now,
+          lastActiveAt: now,
+          expiresAt: expiresAt,
+          durationMinutes: durationMinutes
+        });
         setEncargado(sanitizeText(found.name).toUpperCase());
         setCheckEvaluador(sanitizeText(found.name).toUpperCase());
         setScreen("hub");
       }
 
-      async function handleLogout() {
-        if (hasUnsavedWork()) {
+      async function handleLogout(isSessionExpired = false) {
+        if (!isSessionExpired && hasUnsavedWork()) {
           const confirmLogout = window.confirm("⚠️ ADVERTENCIA: Se perderán datos no guardados al salir de este espacio.\n\n¿Estás seguro de que deseas cerrar sesión?");
           if (!confirmLogout) return;
         }
         await storageSet('aurora_session', null);
         setAuthedUser(null);
+        setSessionExpiresAt(null);
+        setSessionRemainingSeconds(null);
+        setShowSessionWarningModal(false);
         setLoginUser("");
         setLoginPass("");
-        setLoginError("");
+        if (isSessionExpired) {
+          setLoginError("Tu sesión ha expirado por límite de tiempo. Por favor, ingresa tus credenciales nuevamente.");
+        } else {
+          setLoginError("");
+        }
         setScreen("login");
       }
+
+      async function extendCurrentSession() {
+        if (!authedUser) return;
+        const now = Date.now();
+        const sConf = await getSessionConfig();
+        const durationMinutes = sConf.durationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
+        const newExpiresAt = now + (durationMinutes * 60 * 1000);
+
+        setSessionExpiresAt(newExpiresAt);
+        setSessionRemainingSeconds(durationMinutes * 60);
+        setShowSessionWarningModal(false);
+
+        const currentSession = await storageGet('aurora_session', {});
+        await storageSet('aurora_session', {
+          ...(currentSession || {}),
+          user: authedUser.user,
+          lastActiveAt: now,
+          expiresAt: newExpiresAt,
+          durationMinutes: durationMinutes
+        });
+      }
+
+      function formatRemainingSessionTime(seconds) {
+        if (seconds === null || seconds === undefined || seconds <= 0) return "0m 00s";
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        if (mins >= 60) {
+          const hours = Math.floor(mins / 60);
+          const remMins = mins % 60;
+          return `${hours}h ${remMins}m`;
+        }
+        if (mins > 0) {
+          return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+        }
+        return `${secs}s`;
+      }
+
+      // Monitoreo activo de vigencia de sesión en tiempo real
+      useEffect(() => {
+        if (!authedUser || !sessionExpiresAt) return;
+
+        const checkSession = () => {
+          const now = Date.now();
+          const remainingMs = sessionExpiresAt - now;
+
+          if (remainingMs <= 0) {
+            handleLogout(true);
+            return;
+          }
+
+          const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
+          setSessionRemainingSeconds(remSecs);
+
+          // Si falta 2 minutos o menos (120 seg), mostrar modal preventivo
+          if (remainingMs <= SESSION_WARNING_BEFORE_EXPIRATION_MS) {
+            setShowSessionWarningModal(true);
+          } else {
+            setShowSessionWarningModal(false);
+          }
+        };
+
+        checkSession();
+        const intervalId = setInterval(checkSession, 1000);
+        return () => clearInterval(intervalId);
+      }, [authedUser, sessionExpiresAt]);
 
       async function handleChangePasswordSubmit(e) {
         e.preventDefault();
@@ -3023,11 +3172,14 @@
         if (isTransformation) {
           return [{ categoria: "TRANSFORMACIÓN", items: catalog }];
         }
-        const q = query.trim().toLowerCase();
+        const qNorm = normalizeForSearch(query.trim());
         const filtered = catalog.filter((it) => {
           const matchesCat = categoryFilter === "all" || it.c === categoryFilter;
           if (!matchesCat) return false;
-          const matchesQuery = !q || it.p.toLowerCase().includes(q) || (it.b1 && String(it.b1).toLowerCase().includes(q)) || it.c.toLowerCase().includes(q);
+          const matchesQuery = !qNorm ||
+            normalizeForSearch(it.p).includes(qNorm) ||
+            (it.b1 && normalizeForSearch(it.b1).includes(qNorm)) ||
+            normalizeForSearch(it.c).includes(qNorm);
           if (!matchesQuery || headerFilter === "all") return matchesQuery;
           const key = catalogRowKey(it);
           const entry = entries[key] || {};
@@ -3190,7 +3342,8 @@
           if (authedUser?.user === editingUser.originalUser) {
             const updatedCurrent = { user: cleanUser, pass: finalPass, name: cleanName, role: cleanRole };
             setAuthedUser(updatedCurrent);
-            await storageSet('aurora_session', { user: cleanUser });
+            const curSession = await storageGet('aurora_session', {});
+            await storageSet('aurora_session', { ...(curSession || {}), user: cleanUser });
             setEncargado(cleanName.toUpperCase());
             setCheckEvaluador(cleanName.toUpperCase());
           }
@@ -4365,9 +4518,23 @@
                     <span style={{ fontSize: 12.5, fontWeight: 700, color: "#051F20" }}>
                       {authedUser.name.split(" ")[0]}
                     </span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: "#235347" }}>
-                      {isAdmin ? "Admin" : "Básico"}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#235347" }}>
+                        {isAdmin ? "Admin" : "Básico"}
+                      </span>
+                      {sessionRemainingSeconds !== null && (
+                        <span
+                          title={`Sesión activa vence en ${formatRemainingSessionTime(sessionRemainingSeconds)}`}
+                          style={{
+                            fontSize: 9.5,
+                            color: sessionRemainingSeconds <= 300 ? "#DC2626" : "#235347",
+                            fontWeight: 700
+                          }}
+                        >
+                          · {formatRemainingSessionTime(sessionRemainingSeconds)}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <ChevronDown size={15} color="#0B2B26" style={{ transform: isUserMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease", marginLeft: 2 }} />
@@ -4394,6 +4561,33 @@
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#051F20", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{authedUser.name}</div>
                         <div style={{ fontSize: 11, color: "#235347", fontWeight: 600 }}>@{authedUser.user} · {isAdmin ? "Administrador" : "Usuario Básico"}</div>
                       </div>
+                    </div>
+
+                    {/* Vigencia y tiempo de sesión activa */}
+                    <div style={{
+                      padding: "8px 10px", borderRadius: 10,
+                      background: sessionRemainingSeconds <= 300 ? "#FEE2E2" : "#F4FBF7",
+                      border: `1px solid ${sessionRemainingSeconds <= 300 ? "#FCA5A5" : "#A7F3D0"}`,
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, margin: "2px 0"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                        <Clock size={13} color={sessionRemainingSeconds <= 300 ? "#DC2626" : "#059669"} style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: sessionRemainingSeconds <= 300 ? "#991B1B" : "#065F46" }}>
+                          Vence en: <strong>{formatRemainingSessionTime(sessionRemainingSeconds)}</strong>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); extendCurrentSession(); }}
+                        title="Renovar tiempo de sesión"
+                        style={{
+                          background: "#FFFFFF", border: "1px solid #8EB69B", borderRadius: 6,
+                          padding: "2px 6px", fontSize: 10, fontWeight: 700, color: "#0B2B26", cursor: "pointer",
+                          flexShrink: 0
+                        }}
+                      >
+                        Renovar
+                      </button>
                     </div>
 
                     <div style={{ height: 1, background: "rgba(142, 182, 155, 0.3)", margin: "4px 0" }} />
@@ -4899,6 +5093,55 @@
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                {/* CONFIGURACIÓN DE SEGURIDAD Y VIGENCIA DE SESIONES */}
+                <div className="glass-card" style={{ padding: "20px 24px", marginTop: "24px", borderRadius: "18px", border: "1.5px solid #8EB69B", background: "#FFFFFF" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: "#DAF1DE", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #8EB69B" }}>
+                        <Clock size={22} color="#0B2B26" />
+                      </div>
+                      <div>
+                        <h3 className="heading-fine" style={{ margin: 0, fontSize: 16, color: "#051F20" }}>Tiempo de Expiración de Sesiones</h3>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#235347" }}>Define tras cuánto tiempo de inactividad o vigencia se cerrará la sesión y se pedirá autenticarse nuevamente</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "#F4FBF7", padding: "14px 16px", borderRadius: 14, border: "1px solid #DAF1DE" }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: "#051F20", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span>Duración de la Sesión:</span>
+                      <select
+                        value={sessionDurationConfig}
+                        onChange={async (e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setSessionDurationConfig(val);
+                          await saveSessionConfig({ durationMinutes: val });
+                          const now = Date.now();
+                          const newExpiry = now + (val * 60 * 1000);
+                          setSessionExpiresAt(newExpiry);
+                          const cur = await storageGet("aurora_session", {});
+                          if (cur && cur.user) {
+                            await storageSet("aurora_session", { ...cur, durationMinutes: val, expiresAt: newExpiry });
+                          }
+                          alert(`¡Configuración guardada! Las sesiones durarán ${val >= 60 ? (val / 60) + ' hora(s)' : val + ' minutos'}.`);
+                        }}
+                        className="admin-input"
+                        style={{ minWidth: 230, padding: "8px 12px", fontSize: 13, fontWeight: 600, background: "#FFFFFF" }}
+                      >
+                        {SESSION_DURATION_PRESETS.map((p) => (
+                          <option key={p.minutes} value={p.minutes}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div style={{ fontSize: 12, color: "#166534", background: "#DCFCE7", padding: "6px 12px", borderRadius: 10, border: "1px solid #BBF7D0", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                      <ShieldCheck size={14} /> Cierre automático con aviso 2 minutos antes
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -6230,6 +6473,131 @@
                       onMouseOut={(e) => e.currentTarget.style.color = "#6B7280"}
                     >
                       <X size={15} /> Cancelar Acción
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal de Advertencia de Expiración de Sesión */}
+            {showSessionWarningModal && authedUser && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="session-warning-title"
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 20,
+                  background: "rgba(5, 31, 32, 0.65)",
+                  backdropFilter: "blur(8px)",
+                  animation: "fadeIn 0.2s ease-out"
+                }}
+              >
+                <div
+                  className="glass-card"
+                  style={{
+                    width: "100%",
+                    maxWidth: 420,
+                    padding: "32px 28px",
+                    background: "#FFFFFF",
+                    boxShadow: "0 25px 60px rgba(5,31,32,0.35)",
+                    border: "2px solid #F59E0B",
+                    borderRadius: 24,
+                    textAlign: "center",
+                    animation: "scaleIn 0.2s ease-out"
+                  }}
+                >
+                  <div style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    background: "#FEF3C7",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 16px",
+                    border: "2px solid #F59E0B"
+                  }}>
+                    <Clock size={34} color="#D97706" />
+                  </div>
+
+                  <h2 id="session-warning-title" className="heading-fine" style={{ margin: "0 0 8px", fontSize: 20, color: "#92400E" }}>
+                    ¿Sigues ahí? Tu sesión expirará pronto
+                  </h2>
+
+                  <p style={{ color: "#235347", fontSize: 13.5, lineHeight: 1.5, margin: "0 0 16px" }}>
+                    Por motivos de seguridad, la sesión se cerrará automáticamente en:
+                  </p>
+
+                  <div style={{
+                    fontSize: 26,
+                    fontWeight: 800,
+                    color: "#DC2626",
+                    background: "#FEE2E2",
+                    padding: "10px 20px",
+                    borderRadius: 14,
+                    display: "inline-block",
+                    marginBottom: 22,
+                    letterSpacing: 1.5,
+                    border: "1px solid #FCA5A5"
+                  }}>
+                    {formatRemainingSessionTime(sessionRemainingSeconds)}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={extendCurrentSession}
+                      style={{
+                        width: "100%",
+                        background: "#0B2B26",
+                        color: "#FFFFFF",
+                        border: "none",
+                        borderRadius: 12,
+                        padding: "13px",
+                        fontWeight: 700,
+                        fontSize: 13.5,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        boxShadow: "0 4px 14px rgba(11,43,38,0.3)",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = "#163832"}
+                      onMouseOut={(e) => e.currentTarget.style.background = "#0B2B26"}
+                    >
+                      <CheckCircle2 size={17} /> Continuar Trabajando (Extender Sesión)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleLogout(false)}
+                      style={{
+                        width: "100%",
+                        background: "#FFFFFF",
+                        color: "#6B7280",
+                        border: "1px solid #D1D5DB",
+                        borderRadius: 12,
+                        padding: "11px",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.color = "#111827"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.color = "#6B7280"; }}
+                    >
+                      <X size={15} /> Cerrar Sesión Ahora
                     </button>
                   </div>
                 </div>
