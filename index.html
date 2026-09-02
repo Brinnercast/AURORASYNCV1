@@ -28,6 +28,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -817,18 +818,103 @@
       return dateStr;
     }
 
-    // Utils de Storage Local
+    // Configuración e Inicialización de Supabase Cloud Database
+    const SUPABASE_URL = "https://bpcakpnucwwyvmyzifnw.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_secret_6iOiKVgq07J5jyOstUFwLg_YFsqE0YG";
+    let supabaseClient = null;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === "function") {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn("Supabase init error:", e);
+    }
+
+    // Claves estrictamente locales del dispositivo (no se sincronizan entre usuarios)
+    const LOCAL_ONLY_KEYS = new Set([
+      "aurora_session",
+      "aurora_active_area",
+      "aurora_active_check_area",
+      "aurora_gdrive_token",
+      "aurora_gdrive_email",
+      "aurora_gdrive_client_id",
+      "aurora_gdrive_folder_id",
+      "aurora_success_info"
+    ]);
+
+    // Utils de Almacenamiento Centralizado en Supabase con Respaldo en LocalStorage
     async function storageGet(key, fallback) {
+      if (LOCAL_ONLY_KEYS.has(key)) {
+        try {
+          const val = localStorage.getItem(key);
+          return val !== null ? JSON.parse(val) : fallback;
+        } catch (e) { return fallback; }
+      }
+
+      // 1. Intentar consultar en Supabase
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from("aurora_store")
+            .select("value")
+            .eq("key", key)
+            .maybeSingle();
+
+          if (!error && data && data.value !== undefined && data.value !== null) {
+            try { localStorage.setItem(key, JSON.stringify(data.value)); } catch (e) { }
+            return data.value;
+          }
+        } catch (err) {
+          console.warn("Error leyendo de Supabase para key:", key, err);
+        }
+      }
+
+      // 2. Fallback a LocalStorage si la nube aún no tiene el dato o si no hay conexión
       try {
         const val = localStorage.getItem(key);
-        return val ? JSON.parse(val) : fallback;
-      } catch (e) { return fallback; }
+        if (val !== null) {
+          const parsed = JSON.parse(val);
+          if (supabaseClient && parsed !== undefined && parsed !== null) {
+            supabaseClient.from("aurora_store").upsert({ key, value: parsed }).then(() => {});
+          }
+          return parsed;
+        }
+      } catch (e) { }
+
+      // 3. Fallback al valor por defecto (y guardarlo en Supabase si es inicialización)
+      if (fallback !== undefined && fallback !== null && supabaseClient) {
+        supabaseClient.from("aurora_store").upsert({ key, value: fallback }).then(() => {});
+      }
+      return fallback;
     }
+
     async function storageSet(key, value) {
+      // Siempre guardar de inmediato en LocalStorage (acceso instantáneo y respaldo offline)
       try {
         localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) { }
+
+      if (LOCAL_ONLY_KEYS.has(key)) {
         return true;
-      } catch (e) { return false; }
+      }
+
+      // Guardar en la nube compartida de Supabase
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from("aurora_store")
+            .upsert({ key, value, updated_at: new Date().toISOString() });
+          if (error) {
+            console.error("Supabase upsert error:", error);
+            return false;
+          }
+          return true;
+        } catch (err) {
+          console.error("Error guardando en Supabase:", err);
+          return false;
+        }
+      }
+      return true;
     }
 
     // Control de intentos fallidos y bloqueo temporal
@@ -1443,6 +1529,48 @@
           }
         });
       }, []);
+
+      // Sincronización en Tiempo Real con Supabase Cloud
+      useEffect(() => {
+        if (!supabaseClient) return;
+
+        const channel = supabaseClient
+          .channel("aurora-realtime-global")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "aurora_store" },
+            (payload) => {
+              if (payload && payload.new && payload.new.key) {
+                const key = payload.new.key;
+                const val = payload.new.value;
+
+                // Actualizar caché local
+                try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { }
+
+                // Actualizar estados reactivos según la clave modificada
+                if (key === "aurora_users" && Array.isArray(val)) {
+                  setUsers(val);
+                } else if (key === "aurora_rrhh_docs" && val) {
+                  setRrhhDocs(val);
+                } else if (key === "aurora_transform_options_v2" && Array.isArray(val)) {
+                  setTransformOptions(val);
+                } else if (key === "aurora_auth_security" && val) {
+                  setAuthSecurityMap(val);
+                } else if (area && key === `reqHistory:${area}` && Array.isArray(val)) {
+                  const sorted = [...val].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+                  setHistorySaves(sorted);
+                }
+              }
+            }
+          )
+          .subscribe();
+
+        return () => {
+          if (supabaseClient && channel) {
+            supabaseClient.removeChannel(channel);
+          }
+        };
+      }, [area]);
 
       // Comprobación de cambios no guardados en formularios o catálogos
       function hasUnsavedWork() {
