@@ -861,29 +861,6 @@
             .maybeSingle();
 
           if (!error && data && data.value !== undefined && data.value !== null) {
-            // Si es un historial, combinar inteligentemente con cualquier historial local previo no subido
-            if (key.startsWith("reqHistory:") && Array.isArray(data.value)) {
-              try {
-                const localRaw = localStorage.getItem(key);
-                if (localRaw) {
-                  const localList = JSON.parse(localRaw);
-                  if (Array.isArray(localList) && localList.length > 0) {
-                    const map = new Map();
-                    [...data.value, ...localList].forEach(item => {
-                      const uid = item?.id || `${item?.fecha}_${item?.savedAt}` || JSON.stringify(item);
-                      if (uid) map.set(uid, item);
-                    });
-                    const merged = Array.from(map.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-                    if (merged.length > data.value.length) {
-                      supabaseClient.from("aurora_store").upsert({ key, value: merged }).then(() => {});
-                    }
-                    try { localStorage.setItem(key, JSON.stringify(merged)); } catch (e) {}
-                    return merged;
-                  }
-                }
-              } catch (e) {}
-            }
-
             try { localStorage.setItem(key, JSON.stringify(data.value)); } catch (e) { }
             return data.value;
           }
@@ -897,17 +874,11 @@
         const val = localStorage.getItem(key);
         if (val !== null) {
           const parsed = JSON.parse(val);
-          if (supabaseClient && parsed !== undefined && parsed !== null) {
-            supabaseClient.from("aurora_store").upsert({ key, value: parsed }).then(() => {});
-          }
           return parsed;
         }
       } catch (e) { }
 
-      // 3. Fallback al valor por defecto (y guardarlo en Supabase si es inicialización)
-      if (fallback !== undefined && fallback !== null && supabaseClient) {
-        supabaseClient.from("aurora_store").upsert({ key, value: fallback }).then(() => {});
-      }
+      // 3. Fallback al valor por defecto (sin sobreescribir la base de datos)
       return fallback;
     }
 
@@ -940,7 +911,170 @@
       return true;
     }
 
-    // Migración automática: sube los datos guardados previamente en este navegador a la nube
+    // Consulta agregada y multiusuario del historial de un área en Supabase
+    async function fetchAreaHistory(area) {
+      if (!area) return [];
+      const historyMap = new Map();
+
+      // 1. Cargar desde caché local para despliegue instantáneo
+      try {
+        const localRaw = localStorage.getItem(`reqHistory:${area}`);
+        if (localRaw) {
+          const localList = JSON.parse(localRaw);
+          if (Array.isArray(localList)) {
+            localList.forEach(item => {
+              if (item) {
+                const uid = item.id || `${item.fecha}_${item.savedAt}` || item.title;
+                if (uid) historyMap.set(uid, item);
+              }
+            });
+          }
+        }
+      } catch (e) { }
+
+      // 2. Consultar en Supabase todos los registros individuales del área (req:${area}:*)
+      if (supabaseClient) {
+        try {
+          const { data: records, error } = await supabaseClient
+            .from("aurora_store")
+            .select("key, value, updated_at")
+            .like("key", `req:${area}:%`)
+            .order("updated_at", { ascending: false });
+
+          if (!error && Array.isArray(records)) {
+            records.forEach(r => {
+              const item = r.value;
+              if (item && typeof item === "object") {
+                const uid = item.id || `${item.fecha}_${item.savedAt}` || r.key;
+                if (uid) {
+                  historyMap.set(uid, {
+                    ...item,
+                    id: uid
+                  });
+                }
+              }
+            });
+          }
+
+          // Consultar también la clave consolidada reqHistory:${area} (retrocompatibilidad)
+          const { data: legacyRow } = await supabaseClient
+            .from("aurora_store")
+            .select("value")
+            .eq("key", `reqHistory:${area}`)
+            .maybeSingle();
+
+          if (legacyRow && Array.isArray(legacyRow.value)) {
+            legacyRow.value.forEach(item => {
+              if (item && typeof item === "object") {
+                const uid = item.id || `${item.fecha}_${item.savedAt}` || item.title;
+                if (uid && !historyMap.has(uid)) {
+                  historyMap.set(uid, item);
+                }
+              }
+            });
+          }
+        } catch (err) {
+          console.warn(`Error consultando historial de ${area} en Supabase:`, err);
+        }
+      }
+
+      const combined = Array.from(historyMap.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+
+      // Actualizar caché local con la lista completa consolidada
+      try {
+        localStorage.setItem(`reqHistory:${area}`, JSON.stringify(combined));
+      } catch (e) { }
+
+      return combined;
+    }
+
+    // Guardado seguro e inmutable de un requerimiento en Supabase
+    async function saveRequirementSnapshot(area, snapshot) {
+      if (!area || !snapshot) return [];
+      const snapId = snapshot.id || `${snapshot.fecha}_${snapshot.savedAt || Date.now()}`;
+      const enrichedSnapshot = {
+        ...snapshot,
+        id: snapId
+      };
+
+      // 1. Guardar individualmente en Supabase con clave única inmutable
+      //    (impide que otros usuarios borren o sobrescriban este requerimiento)
+      if (supabaseClient) {
+        try {
+          await supabaseClient
+            .from("aurora_store")
+            .upsert({
+              key: `req:${area}:${snapId}`,
+              value: enrichedSnapshot,
+              updated_at: new Date().toISOString()
+            });
+
+          // Guardar también bajo el puntero por fecha (compatibilidad)
+          await supabaseClient
+            .from("aurora_store")
+            .upsert({
+              key: `req:${area}:${enrichedSnapshot.fecha}`,
+              value: enrichedSnapshot,
+              updated_at: new Date().toISOString()
+            });
+        } catch (err) {
+          console.error("Error guardando snapshot individual en Supabase:", err);
+        }
+      }
+
+      // 2. Obtener lista consolidada desde la nube y actualizar la lista visible y de respaldo
+      const allHistory = await fetchAreaHistory(area);
+      const withoutCurrent = allHistory.filter(it => it.id !== snapId && !(it.fecha === enrichedSnapshot.fecha && it.title === enrichedSnapshot.title && Math.abs((it.savedAt || 0) - (enrichedSnapshot.savedAt || 0)) < 1000));
+      const merged = [enrichedSnapshot, ...withoutCurrent].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 30);
+
+      try {
+        localStorage.setItem(`reqHistory:${area}`, JSON.stringify(merged));
+        if (supabaseClient) {
+          await supabaseClient
+            .from("aurora_store")
+            .upsert({ key: `reqHistory:${area}`, value: merged, updated_at: new Date().toISOString() });
+        }
+      } catch (e) { }
+
+      return merged;
+    }
+
+    // Eliminación de un requerimiento (solo administradores)
+    async function deleteRequirementSnapshot(area, target) {
+      if (!area || !target) return [];
+      const targetId = target.id || `${target.fecha}_${target.savedAt}`;
+
+      if (supabaseClient) {
+        try {
+          await supabaseClient
+            .from("aurora_store")
+            .delete()
+            .or(`key.eq.req:${area}:${targetId},key.eq.req:${area}:${target.fecha}`);
+        } catch (err) {
+          console.warn("Error eliminando fila individual de Supabase:", err);
+        }
+      }
+
+      const currentList = await fetchAreaHistory(area);
+      const filtered = currentList.filter(it => {
+        if (it.id && it.id === targetId) return false;
+        if (it.savedAt === target.savedAt && it.fecha === target.fecha && it.title === target.title) return false;
+        return true;
+      });
+
+      try {
+        localStorage.setItem(`reqHistory:${area}`, JSON.stringify(filtered));
+        if (supabaseClient) {
+          await supabaseClient
+            .from("aurora_store")
+            .upsert({ key: `reqHistory:${area}`, value: filtered, updated_at: new Date().toISOString() });
+        }
+      } catch (e) { }
+
+      return filtered;
+    }
+
+    // Migración automática: sube los datos guardados previamente en este navegador a la nube sin sobreescribir datos ajenos
     async function autoMigrateLocalDataToSupabase() {
       if (!supabaseClient) return;
       try {
@@ -959,21 +1093,23 @@
             if (parsed === undefined || parsed === null) continue;
 
             if (k.startsWith("reqHistory:")) {
-              const { data: remote } = await supabaseClient.from("aurora_store").select("value").eq("key", k).maybeSingle();
-              const remoteList = Array.isArray(remote?.value) ? remote.value : [];
-              const localList = Array.isArray(parsed) ? parsed : [];
-              const map = new Map();
-              [...remoteList, ...localList].forEach(item => {
-                const uniqueKey = item?.id || `${item?.fecha}_${item?.savedAt}` || JSON.stringify(item);
-                if (uniqueKey) map.set(uniqueKey, item);
-              });
-              const merged = Array.from(map.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-              await supabaseClient.from("aurora_store").upsert({ key: k, value: merged });
-              try { localStorage.setItem(k, JSON.stringify(merged)); } catch (e) { }
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const areaKey = k.replace("reqHistory:", "");
+                for (const item of parsed) {
+                  if (item && item.fecha) {
+                    await saveRequirementSnapshot(areaKey, item);
+                  }
+                }
+              }
+            } else if (k.startsWith("req:")) {
+              const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
+              if (!remote) {
+                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed, updated_at: new Date().toISOString() });
+              }
             } else {
               const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
               if (!remote) {
-                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed });
+                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed, updated_at: new Date().toISOString() });
               }
             }
           } catch (e) { }
@@ -1159,6 +1295,9 @@
       const [loadStatus, setLoadStatus] = useState("idle");
       const [historySaves, setHistorySaves] = useState([]);
       const [saveTitle, setSaveTitle] = useState("");
+      const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+      const [cloudSyncStatus, setCloudSyncStatus] = useState("connected");
+      const [lastSyncTime, setLastSyncTime] = useState("");
       const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
       const [openHistoryExportMenu, setOpenHistoryExportMenu] = useState(null);
       const [overwriteModalInfo, setOverwriteModalInfo] = useState(null);
@@ -1343,7 +1482,7 @@
 
           for (const key of Object.keys(LOGISTICA_AREAS)) {
             backupData.catalogs[key] = await storageGet(`catalog:${key}`, []);
-            backupData.histories[key] = await storageGet(`reqHistory:${key}`, []);
+            backupData.histories[key] = await fetchAreaHistory(key);
           }
 
           const jsonStr = JSON.stringify(backupData, null, 2);
@@ -1403,13 +1542,17 @@
               await storageSet(`catalog:${key}`, backupData.catalogs[key]);
               newCatalogByArea[key] = backupData.catalogs[key];
             }
-            if (backupData.histories[key]) {
-              await storageSet(`reqHistory:${key}`, backupData.histories[key]);
+            if (backupData.histories[key] && Array.isArray(backupData.histories[key])) {
+              for (const item of backupData.histories[key]) {
+                if (item && item.fecha) {
+                  await saveRequirementSnapshot(key, item);
+                }
+              }
             }
           }
           setCatalogByArea(newCatalogByArea);
           if (area) {
-            const h = await storageGet(`reqHistory:${area}`, []);
+            const h = await fetchAreaHistory(area);
             setHistorySaves(h);
           }
 
@@ -1623,14 +1766,21 @@
                   setTransformOptions(val);
                 } else if (key === "aurora_auth_security" && val) {
                   setAuthSecurityMap(val);
-                } else if (area && key === `reqHistory:${area}` && Array.isArray(val)) {
-                  const sorted = [...val].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-                  setHistorySaves(sorted);
+                } else if (area && (key === `reqHistory:${area}` || key.startsWith(`req:${area}:`))) {
+                  fetchAreaHistory(area).then((sorted) => {
+                    setHistorySaves(sorted);
+                    setCloudSyncStatus("connected");
+                    setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+                  });
                 }
               }
             }
           )
-          .subscribe();
+          .subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              setCloudSyncStatus("connected");
+            }
+          });
 
         return () => {
           if (supabaseClient && channel) {
@@ -1770,10 +1920,15 @@
           setEntries({});
           setLoadStatus("empty");
 
-          storageGet(`reqHistory:${area}`, []).then((history) => {
-            const items = Array.isArray(history) ? history : [];
-            const sorted = [...items].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+          setIsSyncingCloud(true);
+          fetchAreaHistory(area).then((sorted) => {
             setHistorySaves(sorted);
+            setCloudSyncStatus("connected");
+            setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+          }).catch((err) => {
+            console.warn("Error cargando historial de área:", err);
+          }).finally(() => {
+            setIsSyncingCloud(false);
           });
         }
       }, [screen, area, fecha]);
@@ -2003,11 +2158,20 @@
         setCatalogByArea({ ...catalogByArea, CARNES_TRANSFORMACION: list });
       }
 
-      async function refreshHistoryFromStorage() {
+      async function refreshHistoryFromStorage(showToast = false) {
         if (!area) return;
-        const history = await storageGet(`reqHistory:${area}`, []);
-        const sorted = [...(Array.isArray(history) ? history : [])].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-        setHistorySaves(sorted);
+        setIsSyncingCloud(true);
+        try {
+          const sorted = await fetchAreaHistory(area);
+          setHistorySaves(sorted);
+          setCloudSyncStatus("connected");
+          setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        } catch (err) {
+          console.warn("Error al sincronizar historial con Supabase:", err);
+          setCloudSyncStatus("offline");
+        } finally {
+          setIsSyncingCloud(false);
+        }
       }
 
       async function handleSaveData(forceOverwrite = false, saveAsNew = false) {
@@ -2016,7 +2180,7 @@
         const cleanEncargado = sanitizeText(authedUser?.name || encargado || "Usuario", 80).toUpperCase();
         const cleanFecha = sanitizeDate(fecha);
 
-        const previousHistory = await storageGet(`reqHistory:${area}`, []);
+        const previousHistory = await fetchAreaHistory(area);
         const history = Array.isArray(previousHistory) ? previousHistory : [];
         const existing = history.find((item) => item.fecha === cleanFecha);
 
@@ -2040,6 +2204,7 @@
         const isEditing = forceOverwrite && !!existing;
 
         const snapshot = {
+          id: existing && forceOverwrite ? (existing.id || `${cleanFecha}_${now}`) : `${cleanFecha}_${now}`,
           fecha: cleanFecha,
           encargado: cleanEncargado,
           createdBy: isEditing ? (existing.createdBy || existing.encargado || cleanEncargado) : cleanEncargado,
@@ -2054,12 +2219,11 @@
           title: generatedTitle,
           status: "ENVIADO"
         };
-        await storageSet(`req:${area}:${cleanFecha}`, snapshot);
 
-        const withoutCurrent = history.filter((item) => forceOverwrite ? (item.fecha !== cleanFecha) : (item.fecha !== cleanFecha || item.title !== generatedTitle));
-        const merged = [snapshot, ...withoutCurrent].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 20);
-        await storageSet(`reqHistory:${area}`, merged);
+        const merged = await saveRequirementSnapshot(area, snapshot);
         setHistorySaves(merged);
+        setCloudSyncStatus("connected");
+        setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
         setOverwriteModalInfo(null);
         setEntries({});
         setEncargado(cleanEncargado);
@@ -2092,7 +2256,7 @@
         const cleanEncargado = sanitizeText(encargado, 80);
         const cleanFecha = sanitizeDate(fecha);
 
-        const previousHistory = await storageGet(`reqHistory:${area}`, []);
+        const previousHistory = await fetchAreaHistory(area);
         const history = Array.isArray(previousHistory) ? previousHistory : [];
         const existing = history.find((item) => item.fecha === cleanFecha);
 
@@ -2101,20 +2265,24 @@
           generatedTitle = existing?.title || `Guardado ${new Date().toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
         }
 
+        const now = Date.now();
+        const dateStr = new Date(now).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const timeStr = new Date(now).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+
         const snapshot = {
+          id: existing?.id || `${cleanFecha}_${now}`,
           fecha: cleanFecha,
           encargado: cleanEncargado,
+          createdBy: existing?.createdBy || existing?.encargado || cleanEncargado,
+          createdAt: existing?.createdAt || existing?.savedAt || now,
           entries,
-          savedAt: Date.now(),
+          savedAt: now,
+          savedAtFormatted: `${dateStr} · ${timeStr}`,
           savedBy: sanitizeText(authedUser?.name || "Usuario", 80),
           title: generatedTitle,
           status: "ENVIADO"
         };
-        await storageSet(`req:${area}:${cleanFecha}`, snapshot);
-
-        const withoutCurrent = history.filter((item) => item.fecha !== cleanFecha);
-        const merged = [snapshot, ...withoutCurrent].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 20);
-        await storageSet(`reqHistory:${area}`, merged);
+        const merged = await saveRequirementSnapshot(area, snapshot);
         setHistorySaves(merged);
         setLoadStatus("saved");
 
@@ -2300,13 +2468,20 @@
           alert("Solo los usuarios con permisos de administrador pueden eliminar registros del historial.");
           return;
         }
-        const confirmed = window.confirm("¿Estás seguro de eliminar este registro del historial?");
+        const confirmed = window.confirm("¿Estás seguro de eliminar este registro del historial en la nube?");
         if (!confirmed) return;
-        const previousHistory = await storageGet(`reqHistory:${area}`, []);
-        const history = Array.isArray(previousHistory) ? previousHistory : [];
-        const filtered = history.filter((item) => !(item.savedAt === target.savedAt && item.fecha === target.fecha && item.title === target.title));
-        await storageSet(`reqHistory:${area}`, filtered);
-        setHistorySaves(filtered);
+        setIsSyncingCloud(true);
+        try {
+          const filtered = await deleteRequirementSnapshot(area, target);
+          setHistorySaves(filtered);
+          setCloudSyncStatus("connected");
+          setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        } catch (err) {
+          console.error("Error al eliminar del historial:", err);
+          alert("No se pudo eliminar el registro de Supabase: " + err.message);
+        } finally {
+          setIsSyncingCloud(false);
+        }
       }
 
       function saveWorkbookXlsx(wb, filename) {
@@ -2682,7 +2857,7 @@
         const cleanEncargado = sanitizeText(encargado, 80);
         const cleanFecha = sanitizeDate(fecha);
 
-        const previousHistory = await storageGet(`reqHistory:${area}`, []);
+        const previousHistory = await fetchAreaHistory(area);
         const history = Array.isArray(previousHistory) ? previousHistory : [];
         const existing = history.find((item) => item.fecha === cleanFecha);
 
@@ -2691,20 +2866,24 @@
           generatedTitle = existing?.title || `Guardado ${new Date().toLocaleString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })}`;
         }
 
+        const now = Date.now();
+        const dateStr = new Date(now).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const timeStr = new Date(now).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
         const snapshot = {
+          id: existing?.id || `${cleanFecha}_${now}`,
           fecha: cleanFecha,
           encargado: cleanEncargado,
+          createdBy: existing?.createdBy || existing?.encargado || cleanEncargado,
+          createdAt: existing?.createdAt || existing?.savedAt || now,
           entries,
-          savedAt: Date.now(),
+          savedAt: now,
+          savedAtFormatted: `${dateStr} · ${timeStr}`,
           savedBy: sanitizeText(authedUser?.name || "Usuario", 80),
           title: generatedTitle,
           status: "ENVIADO"
         };
-        await storageSet(`req:${area}:${cleanFecha}`, snapshot);
-
-        const withoutCurrent = history.filter((item) => item.fecha !== cleanFecha);
-        const merged = [snapshot, ...withoutCurrent].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 20);
-        await storageSet(`reqHistory:${area}`, merged);
+        const merged = await saveRequirementSnapshot(area, snapshot);
         setHistorySaves(merged);
         setOverwriteModalInfo(null);
         setLoadStatus("saved");
@@ -3424,6 +3603,14 @@
           overflow-x: hidden;
           max-width: 100vw;
           width: 100%;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spinning {
+          animation: spin 0.8s linear infinite;
         }
 
         /* Typography Helper Classes */
@@ -4992,11 +5179,63 @@
 
                 {/* Historial de Guardado */}
                 <div className="glass-card" style={{ padding: "20px 22px", marginBottom: 22, borderRadius: "18px", overflow: "visible" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-                    <h3 className="heading-fine" style={{ margin: 0, fontSize: 15 }}>Historial de Guardado</h3>
-                    <span style={{ fontSize: 11.5, color: "#0B2B26", background: "#DAF1DE", borderRadius: 16, padding: "3px 10px", fontWeight: 600, border: "1px solid #8EB69B" }}>
-                      {historySaves.length} versiones
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <h3 className="heading-fine" style={{ margin: 0, fontSize: 15 }}>Historial de Guardado</h3>
+                      <span style={{ fontSize: 11.5, color: "#0B2B26", background: "#DAF1DE", borderRadius: 16, padding: "3px 10px", fontWeight: 600, border: "1px solid #8EB69B" }}>
+                        {historySaves.length} {historySaves.length === 1 ? "versión guardada" : "versiones guardadas"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {/* Estado de conexión en la Nube Supabase */}
+                      <div
+                        title={cloudSyncStatus === "connected" ? "Sincronizado en tiempo real con la base de datos Supabase" : "Sin conexión a Supabase (Modo local)"}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "4px 10px",
+                          borderRadius: 12,
+                          background: cloudSyncStatus === "connected" ? "#E8F5E9" : "#FFF3E0",
+                          color: cloudSyncStatus === "connected" ? "#1B5E20" : "#E65100",
+                          border: `1px solid ${cloudSyncStatus === "connected" ? "#A5D6A7" : "#FFE082"}`
+                        }}
+                      >
+                        <Cloud size={13} color={cloudSyncStatus === "connected" ? "#2E7D32" : "#F57C00"} />
+                        <span>{cloudSyncStatus === "connected" ? "Supabase en Vivo" : "Modo Local"}</span>
+                        {lastSyncTime && (
+                          <span style={{ opacity: 0.75, fontWeight: 500 }}>({lastSyncTime})</span>
+                        )}
+                      </div>
+
+                      {/* Botón interactivo para refrescar/sincronizar de inmediato */}
+                      <button
+                        type="button"
+                        onClick={() => refreshHistoryFromStorage(true)}
+                        disabled={isSyncingCloud}
+                        title="Actualizar y traer los últimos guardados de todos los usuarios desde Supabase"
+                        style={{
+                          border: "1px solid #8EB69B",
+                          background: "#DAF1DE",
+                          color: "#0B2B26",
+                          borderRadius: 10,
+                          padding: "5px 11px",
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          cursor: isSyncingCloud ? "wait" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                        }}
+                      >
+                        <RefreshCw size={12} className={isSyncingCloud ? "spinning" : ""} />
+                        <span>{isSyncingCloud ? "Sincronizando..." : "Sincronizar"}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
