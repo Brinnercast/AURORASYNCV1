@@ -923,27 +923,12 @@
     }
 
     // Consulta agregada y multiusuario del historial de un área en Supabase
+    // Consulta agregada y multiusuario del historial de un área en Supabase
     async function fetchAreaHistory(area) {
       if (!area) return [];
       const historyMap = new Map();
 
-      // 1. Cargar desde caché local para despliegue instantáneo
-      try {
-        const localRaw = localStorage.getItem(`reqHistory:${area}`);
-        if (localRaw) {
-          const localList = JSON.parse(localRaw);
-          if (Array.isArray(localList)) {
-            localList.forEach(item => {
-              if (item) {
-                const uid = item.id || `${item.fecha}_${item.savedAt}` || item.title;
-                if (uid) historyMap.set(uid, item);
-              }
-            });
-          }
-        }
-      } catch (e) { }
-
-      // 2. Consultar en Supabase todos los registros individuales del área (req:${area}:*)
+      // 1. Si Supabase está conectado, la nube es la fuente de verdad primaria
       if (supabaseClient) {
         try {
           const { data: records, error } = await supabaseClient
@@ -960,7 +945,8 @@
                 if (uid) {
                   historyMap.set(uid, {
                     ...item,
-                    id: uid
+                    id: uid,
+                    _supabaseKey: r.key // Clave física real en Supabase para borrado exacto
                   });
                 }
               }
@@ -968,13 +954,13 @@
           }
 
           // Consultar también la clave consolidada reqHistory:${area} (retrocompatibilidad)
-          const { data: legacyRow } = await supabaseClient
+          const { data: legacyRow, error: legErr } = await supabaseClient
             .from("aurora_store")
             .select("value")
             .eq("key", `reqHistory:${area}`)
             .maybeSingle();
 
-          if (legacyRow && Array.isArray(legacyRow.value)) {
+          if (!legErr && legacyRow && Array.isArray(legacyRow.value)) {
             legacyRow.value.forEach(item => {
               if (item && typeof item === "object") {
                 const uid = item.id || `${item.fecha}_${item.savedAt}` || item.title;
@@ -984,38 +970,52 @@
               }
             });
           }
+
+          const combined = Array.from(historyMap.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+
+          // Sincronizar el caché local para reflejar fielmente la nube
+          try {
+            localStorage.setItem(`reqHistory:${area}`, JSON.stringify(combined));
+          } catch (e) { }
+
+          return combined;
         } catch (err) {
           console.warn(`Error consultando historial de ${area} en Supabase:`, err);
         }
       }
 
-      const combined = Array.from(historyMap.values()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-
-      // Actualizar caché local con la lista completa consolidada
+      // 2. Modo sin conexión o error de red: cargar desde caché local
       try {
-        localStorage.setItem(`reqHistory:${area}`, JSON.stringify(combined));
+        const localRaw = localStorage.getItem(`reqHistory:${area}`);
+        if (localRaw) {
+          const localList = JSON.parse(localRaw);
+          if (Array.isArray(localList)) {
+            return localList.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+          }
+        }
       } catch (e) { }
 
-      return combined;
+      return [];
     }
 
     // Guardado seguro e inmutable de un requerimiento en Supabase
     async function saveRequirementSnapshot(area, snapshot) {
       if (!area || !snapshot) return [];
       const snapId = snapshot.id || `${snapshot.fecha}_${snapshot.savedAt || Date.now()}`;
+      const physicalKey = `req:${area}:${snapId}`;
       const enrichedSnapshot = {
         ...snapshot,
-        id: snapId
+        id: snapId,
+        _supabaseKey: physicalKey
       };
 
       // 1. Guardar individualmente en Supabase con clave única inmutable
-      //    (impide que otros usuarios borren o sobrescriban este requerimiento)
       if (supabaseClient) {
         try {
           await supabaseClient
             .from("aurora_store")
             .upsert({
-              key: `req:${area}:${snapId}`,
+              key: physicalKey,
               value: enrichedSnapshot,
               updated_at: new Date().toISOString()
             });
@@ -1050,29 +1050,91 @@
       return merged;
     }
 
-    // Eliminación de un requerimiento (solo administradores)
+    // Eliminación definitiva de un requerimiento (solo administradores)
     async function deleteRequirementSnapshot(area, target) {
       if (!area || !target) return [];
-      const targetId = target.id || `${target.fecha}_${target.savedAt}`;
 
+      const targetFecha = target.fecha;
+      const targetSavedAt = target.savedAt;
+      const targetTitle = target.title;
+      const targetId = target.id;
+      const exactKey = target._supabaseKey;
+
+      // 1. Identificar y eliminar de Supabase TODAS las claves asociadas a este requerimiento
       if (supabaseClient) {
         try {
-          await supabaseClient
+          const { data: records } = await supabaseClient
             .from("aurora_store")
-            .delete()
-            .or(`key.eq.req:${area}:${targetId},key.eq.req:${area}:${target.fecha}`);
+            .select("key, value")
+            .like("key", `req:${area}:%`);
+
+          const keysToDelete = new Set();
+          if (exactKey) keysToDelete.add(exactKey);
+          if (targetId) {
+            keysToDelete.add(targetId.startsWith(`req:${area}:`) ? targetId : `req:${area}:${targetId}`);
+          }
+          if (targetFecha) {
+            keysToDelete.add(`req:${area}:${targetFecha}`);
+            if (targetSavedAt) {
+              keysToDelete.add(`req:${area}:${targetFecha}_${targetSavedAt}`);
+            }
+          }
+
+          if (Array.isArray(records)) {
+            records.forEach(r => {
+              const it = r.value;
+              if (it && typeof it === "object") {
+                const isExact = exactKey && r.key === exactKey;
+                const matchId = targetId && (it.id === targetId || r.key.endsWith(targetId));
+                const matchTimestamp = targetSavedAt && it.savedAt === targetSavedAt && it.fecha === targetFecha;
+                const matchContent = it.fecha === targetFecha && it.title === targetTitle;
+                if (isExact || matchId || matchTimestamp || matchContent) {
+                  keysToDelete.add(r.key);
+                }
+              }
+            });
+          }
+
+          // Eliminar cada clave física en Supabase y limpiar de localStorage
+          for (const k of keysToDelete) {
+            await supabaseClient.from("aurora_store").delete().eq("key", k);
+            try {
+              localStorage.removeItem(k);
+            } catch (e) { }
+          }
         } catch (err) {
-          console.warn("Error eliminando fila individual de Supabase:", err);
+          console.warn("Error eliminando filas de Supabase:", err);
         }
       }
 
-      const currentList = await fetchAreaHistory(area);
-      const filtered = currentList.filter(it => {
-        if (it.id && it.id === targetId) return false;
-        if (it.savedAt === target.savedAt && it.fecha === target.fecha && it.title === target.title) return false;
+      // 2. Limpiar claves individuales en localStorage
+      try {
+        if (exactKey) localStorage.removeItem(exactKey);
+        if (targetId) localStorage.removeItem(`req:${area}:${targetId}`);
+        if (targetFecha) {
+          localStorage.removeItem(`req:${area}:${targetFecha}`);
+          if (targetSavedAt) localStorage.removeItem(`req:${area}:${targetFecha}_${targetSavedAt}`);
+        }
+      } catch (e) { }
+
+      // 3. Filtrar de la lista consolidada en memoria
+      let localList = [];
+      try {
+        const raw = localStorage.getItem(`reqHistory:${area}`);
+        if (raw) localList = JSON.parse(raw);
+      } catch (e) { }
+      if (!Array.isArray(localList)) localList = [];
+
+      const filtered = localList.filter(it => {
+        if (!it) return false;
+        if (exactKey && it._supabaseKey === exactKey) return false;
+        if (targetId && (it.id === targetId || it.id === `req:${area}:${targetId}`)) return false;
+        if (targetSavedAt && it.savedAt === targetSavedAt && it.fecha === targetFecha) return false;
+        if (targetFecha && it.fecha === targetFecha && it.title === targetTitle) return false;
         return true;
       });
 
+      // 4. Actualizar lista consolidada en localStorage y en Supabase
       try {
         localStorage.setItem(`reqHistory:${area}`, JSON.stringify(filtered));
         if (supabaseClient) {
@@ -1085,14 +1147,72 @@
       return filtered;
     }
 
-    // Migración automática: sube los datos guardados previamente en este navegador a la nube sin sobreescribir datos ajenos
+    // Vaciar permanentemente todo el historial de un área (solo administradores)
+    async function clearAllAreaHistory(area) {
+      if (!area) return [];
+      const confirmed = window.confirm(`⚠️ ADVERTENCIA DE ADMINISTRADOR:
+¿Estás seguro de que deseas eliminar permanentemente TODO el historial de guardado de esta área tanto de la nube como de este dispositivo?
+
+Esta acción es irreversible.`);
+      if (!confirmed) return;
+
+      setIsSyncingCloud(true);
+      try {
+        // 1. Eliminar en Supabase todas las claves individuales req:${area}:*
+        if (supabaseClient) {
+          const { data: records } = await supabaseClient
+            .from("aurora_store")
+            .select("key")
+            .like("key", `req:${area}:%`);
+
+          if (Array.isArray(records)) {
+            for (const r of records) {
+              await supabaseClient.from("aurora_store").delete().eq("key", r.key);
+            }
+          }
+          // Limpiar también reqHistory:${area}
+          await supabaseClient
+            .from("aurora_store")
+            .upsert({ key: `reqHistory:${area}`, value: [], updated_at: new Date().toISOString() });
+        }
+
+        // 2. Limpiar en localStorage
+        try {
+          localStorage.setItem(`reqHistory:${area}`, JSON.stringify([]));
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(`req:${area}:`)) keysToRemove.push(k);
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch (e) { }
+
+        setHistorySaves([]);
+        setCloudSyncStatus("connected");
+        setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        alert("El historial del área ha sido vaciado completamente.");
+      } catch (err) {
+        console.error("Error al vaciar historial:", err);
+        alert("Ocurrió un error al vaciar el historial: " + err.message);
+      } finally {
+        setIsSyncingCloud(false);
+      }
+      return [];
+    }
+
+    // Migración automática inicial: se ejecuta una sola vez para subir catálogos/usuarios iniciales sin resucitar historiales borrados
     async function autoMigrateLocalDataToSupabase() {
       if (!supabaseClient) return;
+      // Protección: si ya migró una vez en este navegador, nunca volver a subir datos de localStorage
+      if (localStorage.getItem("aurora_cloud_migrated_v2")) return;
+      localStorage.setItem("aurora_cloud_migrated_v2", "true");
+
       try {
         const keysToMigrate = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && !LOCAL_ONLY_KEYS.has(k) && !k.startsWith("aurora_gdrive") && !k.startsWith("__")) {
+          // Omitir historiales y claves req: para no resucitar registros eliminados
+          if (k && !LOCAL_ONLY_KEYS.has(k) && !k.startsWith("aurora_gdrive") && !k.startsWith("__") && !k.startsWith("reqHistory:") && !k.startsWith("req:")) {
             keysToMigrate.push(k);
           }
         }
@@ -1102,26 +1222,9 @@
             if (!raw) continue;
             const parsed = JSON.parse(raw);
             if (parsed === undefined || parsed === null) continue;
-
-            if (k.startsWith("reqHistory:")) {
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                const areaKey = k.replace("reqHistory:", "");
-                for (const item of parsed) {
-                  if (item && item.fecha) {
-                    await saveRequirementSnapshot(areaKey, item);
-                  }
-                }
-              }
-            } else if (k.startsWith("req:")) {
-              const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
-              if (!remote) {
-                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed, updated_at: new Date().toISOString() });
-              }
-            } else {
-              const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
-              if (!remote) {
-                await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed, updated_at: new Date().toISOString() });
-              }
+            const { data: remote } = await supabaseClient.from("aurora_store").select("key").eq("key", k).maybeSingle();
+            if (!remote) {
+              await supabaseClient.from("aurora_store").upsert({ key: k, value: parsed, updated_at: new Date().toISOString() });
             }
           } catch (e) { }
         }
@@ -5478,6 +5581,32 @@
                         <RefreshCw size={12} className={isSyncingCloud ? "spinning" : ""} />
                         <span>{isSyncingCloud ? "Sincronizando..." : "Sincronizar"}</span>
                       </button>
+
+                      {isAdmin && historySaves.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => clearAllAreaHistory(area)}
+                          disabled={isSyncingCloud}
+                          title="Eliminar permanentemente todo el historial de esta área (Solo Administradores)"
+                          style={{
+                            border: "1px solid #FCA5A5",
+                            background: "#FEE2E2",
+                            color: "#B91C1C",
+                            borderRadius: 10,
+                            padding: "5px 11px",
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            cursor: isSyncingCloud ? "wait" : "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                          }}
+                        >
+                          <Trash2 size={12} />
+                          <span>Vaciar Historial</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
