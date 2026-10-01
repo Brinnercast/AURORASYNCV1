@@ -44,7 +44,7 @@
       FolderDown, Save, X, Boxes, ClipboardCheck, Beef, Scissors,
       FileUp, FileDown, FileText, Building2, UserPlus, Settings, AlertCircle, Key,
       Send, FileSpreadsheet, AlertTriangle, Filter, Cloud, CloudUpload, CloudOff, RefreshCw,
-      Calendar, Clock
+      Calendar, Clock, Megaphone, Eye
     } from "lucide-react";
 
     // Usuarios por defecto con contraseñas hasheadas criptográficamente (SHA-256 + Salt)
@@ -60,6 +60,15 @@
     ];
 
     const LOGO_URI = encodeURI("logo A Grupo Gastronomico.png");
+
+    // Configuración por defecto para comunicado emergente en Logística
+    const DEFAULT_LOGISTICA_ANNOUNCEMENT = {
+      enabled: false,
+      title: "Comunicado del Departamento de Logística",
+      message: "Estimado equipo: Por favor verificar las existencias físicas de almacén antes de enviar los requerimientos del día.",
+      updatedAt: null,
+      updatedBy: ""
+    };
 
     // Catálogos base de LOGÍSTICA (Extraído de tu Excel de Cocina Actualizado)
     const COCINA_CATALOG_BASE = [
@@ -628,6 +637,17 @@
       { c: "JARABES", b1: 2, b2: "", l1: "DOM-MIE", l2: "JUE-SAB", u: "bot.", f: "DIARIO", p: "ARTISAN MOSCOW MULE", ur: false },
       { c: "JARABES", b1: 4, b2: "", l1: "DOM-MIE", l2: "JUE-SAB", u: "bot.", f: "DIARIO", p: "ARTISAN VAINILLA FRANCESA", ur: false },
     ];
+
+    
+    // Catálogos e inicialización de INVENTARIOS (Salón, Cocina, Bar, Caja)
+    const INVENTARIOS_BASE_DATA = {"SALON":[{"id":"inv_salon_5","stockInicial":0,"descripcion":"Copa de agua Lisboa 16 OZ","pUnit":3.83,"factura":"F001-5804","proveedor":"IMPORT & EXPORT EIRL","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_6","stockInicial":0,"descripcion":"Copa Merlot Vino 16OZ","pUnit":4.9,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_7","stockInicial":0,"descripcion":"Cremero Bowl Loza 2.7\"","pUnit":1.25,"factura":"F001-5766","proveedor":"IMPORT & EXPORT EIRL","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_8","stockInicial":0,"descripcion":"Cuchara para te (cf-200/01) Modelo 200 Facusa","pUnit":1.16,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_9","stockInicial":0,"descripcion":"Cuchara para te (cf-510/08) Modelo 510 Facusa","pUnit":1.2,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_10","stockInicial":0,"descripcion":"Cuchara para te (cf-510/22) Modelo 510 Facusa","pUnit":1.71,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_11","stockInicial":0,"descripcion":"Cuchara para te (cf-520/01) Modelo 520 Facusa","pUnit":2.25,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_12","stockInicial":0,"descripcion":"Cuchara sopera (CF-200/18) S. GUISO Modelo 200 Facusa","pUnit":1.83,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_13","stockInicial":0,"descripcion":"Cuchara -tenedor (cf-510/01) cevichero Modelo 510 Facusa","pUnit":3.4,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_14","stockInicial":0,"descripcion":"Cuchillo","pUnit":2.08,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_15","stockInicial":0,"descripcion":"Cuchillo Hotelero (CF-510/09) Modelo 510 Facusa","pUnit":2.79,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_16","stockInicial":0,"descripcion":"Lampara metalica USB negra pantalla texturizada","pUnit":20,"factura":"FS19-247","proveedor":"GALDIAZ S.A.C.","area":"SALÓN","observacion":"4 en desuso"},{"id":"inv_salon_17","stockInicial":0,"descripcion":"Pinza para pan","pUnit":13.9,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_18","stockInicial":0,"descripcion":"Tenedor","pUnit":1.25,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"},{"id":"inv_salon_19","stockInicial":0,"descripcion":"Tenedor Hotelero (CF-510/09) Modelo 510 Facusa","pUnit":2.5,"factura":"S/Comprobante","proveedor":"S/N","area":"SALÓN","observacion":"Salon no hizo inventario"}],"COCINA":[{"id":"inv_cocina_5","stockInicial":0,"descripcion":"Balanza 40kg","pUnit":100,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_6","stockInicial":0,"descripcion":"Balanza 40kg","pUnit":0,"factura":"S/Comprobante","proveedor":"S/N","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_7","stockInicial":0,"descripcion":"Bandeja gastronómica 1/2*15cm","pUnit":26,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_8","stockInicial":0,"descripcion":"Bandeja gastronómica 1/4*10","pUnit":17,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_9","stockInicial":0,"descripcion":"Bandeja gastronómica 1/6*10","pUnit":15,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_10","stockInicial":0,"descripcion":"Bandeja gastronómica full #15","pUnit":38,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_11","stockInicial":0,"descripcion":"Batidor metálico","pUnit":10,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_12","stockInicial":0,"descripcion":"Biberón Basa 880ml","pUnit":5.5,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_13","stockInicial":0,"descripcion":"Biberón de 1.1 litros","pUnit":6,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_14","stockInicial":0,"descripcion":"Bolo #22","pUnit":14,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_15","stockInicial":0,"descripcion":"Bolo #28","pUnit":16,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_16","stockInicial":0,"descripcion":"Bolo #36","pUnit":20,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_17","stockInicial":0,"descripcion":"Bolo #45","pUnit":28,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_18","stockInicial":0,"descripcion":"Bowl Loza 7.5\"","pUnit":2.17,"factura":"F001-5804","proveedor":"IMPORT & EXPORT EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_19","stockInicial":0,"descripcion":"Canasta de paja para pan","pUnit":0,"factura":"S/Comprobante","proveedor":"S/N","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_20","stockInicial":0,"descripcion":"Chaira","pUnit":30,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_21","stockInicial":0,"descripcion":"Colador #20","pUnit":14,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_22","stockInicial":0,"descripcion":"Colador de tallarines #32","pUnit":37,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_23","stockInicial":0,"descripcion":"Condimentero de bar","pUnit":48,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_24","stockInicial":0,"descripcion":"Cuchara Arrocera Mega","pUnit":2,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_25","stockInicial":0,"descripcion":"Cuchara bocona","pUnit":5,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_26","stockInicial":0,"descripcion":"Cucharon chifero #10","pUnit":20,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_27","stockInicial":0,"descripcion":"Cuchillo #10 Tramontina","pUnit":50,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_28","stockInicial":0,"descripcion":"Cuchillo #8 ultracorte Tramontina","pUnit":28,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_29","stockInicial":0,"descripcion":"Cuchillo Century Office mediano","pUnit":65,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_30","stockInicial":0,"descripcion":"Cuchillo media luna Tramontina","pUnit":95,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_31","stockInicial":0,"descripcion":"Cuchillo serrucho","pUnit":17,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_32","stockInicial":0,"descripcion":"Espatula de acero","pUnit":16,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_33","stockInicial":0,"descripcion":"Espátula de silicona","pUnit":16,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_34","stockInicial":0,"descripcion":"Flameador","pUnit":35,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_35","stockInicial":0,"descripcion":"Frasco de vidrio","pUnit":15,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_36","stockInicial":0,"descripcion":"Freidora M/Madera","pUnit":45,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_37","stockInicial":0,"descripcion":"Fuente Oval de Loza 9\"","pUnit":11.67,"factura":"F001-5804","proveedor":"IMPORT & EXPORT EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_38","stockInicial":0,"descripcion":"Ganchos para Tomahawk","pUnit":90,"factura":"S/Comprobante","proveedor":"S/N","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_39","stockInicial":0,"descripcion":"Grill hierro fundido base madera","pUnit":60,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_40","stockInicial":0,"descripcion":"Impresora Termica CBX USB ETHERNET","pUnit":480,"factura":"E001-1313","proveedor":"CODUP N&L GLOBAL TECHNOLOGY E.I.R.L.","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_41","stockInicial":0,"descripcion":"Jarra de 3 lts","pUnit":8,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_42","stockInicial":0,"descripcion":"Jarra de plástico de 4lts","pUnit":10,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_43","stockInicial":0,"descripcion":"Molde de arroz","pUnit":8,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_44","stockInicial":0,"descripcion":"Olla chiclayana #120","pUnit":165,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_45","stockInicial":0,"descripcion":"Olla chiclayana #180","pUnit":185,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_46","stockInicial":0,"descripcion":"Olla Chiclayana #200","pUnit":200,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_47","stockInicial":0,"descripcion":"Parrilla para mesa","pUnit":180,"factura":"S/Comprobante","proveedor":"S/N","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_48","stockInicial":0,"descripcion":"Parrilla para mesa","pUnit":220,"factura":"S/Comprobante","proveedor":"S/N","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_49","stockInicial":0,"descripcion":"Pelador de cítricos","pUnit":15,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_50","stockInicial":0,"descripcion":"Perol chiclayano #40","pUnit":100,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_51","stockInicial":0,"descripcion":"Perol chiclayano #50","pUnit":120,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_52","stockInicial":0,"descripcion":"Pinza de decorar Z","pUnit":18,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_53","stockInicial":0,"descripcion":"Pinza parrillera Facusa M/M","pUnit":21,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_54","stockInicial":0,"descripcion":"Plato #8 semi hondo T/Piedra","pUnit":14.58,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_55","stockInicial":0,"descripcion":"Plato 11\" Blanco","pUnit":11.6,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_56","stockInicial":0,"descripcion":"Plato de Loza 10.5\"","pUnit":7.5,"factura":"F001-5804","proveedor":"IMPORT & EXPORT EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_57","stockInicial":0,"descripcion":"Plato de Loza 8.5\"","pUnit":4.06,"factura":"F001-5950","proveedor":"IMPORT & EXPORT EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_58","stockInicial":0,"descripcion":"Plato de Loza 9.5\"","pUnit":6.67,"factura":"F001-5804","proveedor":"IMPORT & EXPORT EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_59","stockInicial":0,"descripcion":"Prensapapa","pUnit":67,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_60","stockInicial":0,"descripcion":"Rayador comercial cuadrado","pUnit":28,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_61","stockInicial":0,"descripcion":"Sartén #32","pUnit":65,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_62","stockInicial":0,"descripcion":"Sartén grill Record","pUnit":88,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_63","stockInicial":0,"descripcion":"Tabla de picar de madera","pUnit":18.8,"factura":"E001-78","proveedor":"MORE PRADO EDINSON JOE","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_64","stockInicial":0,"descripcion":"Tabla para parrilla","pUnit":47.2,"factura":"E001-78","proveedor":"MORE PRADO EDINSON JOE","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_65","stockInicial":0,"descripcion":"Termómetro Cdn","pUnit":60,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_66","stockInicial":0,"descripcion":"Trinche M/Madera","pUnit":28,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"},{"id":"inv_cocina_67","stockInicial":0,"descripcion":"Wok de acero #36","pUnit":70,"factura":"F001-2478","proveedor":"ANICHEL EIRL","area":"COCINA","observacion":"Cocina no hizo inventario"}],"BAR":[{"id":"inv_bar_5","stockInicial":1,"descripcion":"Atomizador negro","pUnit":30,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_6","stockInicial":12,"descripcion":"Base circular para cocteles","pUnit":12,"factura":"FX02-4747","proveedor":"NEGOCIOS FU GUANG S.A.C.","area":"BAR","observacion":""},{"id":"inv_bar_7","stockInicial":5,"descripcion":"Bitero","pUnit":18,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_8","stockInicial":2,"descripcion":"Blister Colador Ac. Inox 200mm","pUnit":12.96,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_9","stockInicial":1,"descripcion":"Blister Exprimidor De Limon","pUnit":8.91,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_10","stockInicial":12,"descripcion":"Blister Pinza Para Hielo 18CM","pUnit":4.77,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_11","stockInicial":2,"descripcion":"Blister Utensilios Cuchara Llana Nylon","pUnit":3.06,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_12","stockInicial":2,"descripcion":"Bolw negro YL","pUnit":9.9,"factura":"FX06-320","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_13","stockInicial":1,"descripcion":"Cesped Artificial","pUnit":18.9,"factura":"FX06-320","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_14","stockInicial":4,"descripcion":"Champañera de Acero","pUnit":30,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_15","stockInicial":4,"descripcion":"Coctelera Boston 2 cuerpos Acero","pUnit":60,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_16","stockInicial":4,"descripcion":"Colador cónico FACUSA","pUnit":12,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_17","stockInicial":4,"descripcion":"Colador de gusanillo de acero","pUnit":35,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_18","stockInicial":2,"descripcion":"Colador julep cobre","pUnit":24,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_19","stockInicial":1,"descripcion":"Colgante de flores","pUnit":25.5,"factura":"FX06-320","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_20","stockInicial":11,"descripcion":"Copa Afnor Degustacion 215CC","pUnit":4.95,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_21","stockInicial":34,"descripcion":"Copa Barone Champagne 6.5 Oz/190 ml","pUnit":5,"factura":"F001-1522","proveedor":"CORPORACION REYES C S.A.C.","area":"BAR","observacion":""},{"id":"inv_bar_22","stockInicial":6,"descripcion":"Copa creativa Esfera B/Madera","pUnit":20,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_23","stockInicial":8,"descripcion":"Copa Enoteca 655CC","pUnit":9.9,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_24","stockInicial":6,"descripcion":"Copa para helado","pUnit":1.5,"factura":"FX01-6460","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_25","stockInicial":10,"descripcion":"Copa Prestige 600ML","pUnit":6.9,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_26","stockInicial":19,"descripcion":"Cucharilla para sangria","pUnit":19.9,"factura":"S/Comprobante","proveedor":"S/N","area":"BAR","observacion":""},{"id":"inv_bar_27","stockInicial":2,"descripcion":"Cuchillo #8 ultracorte Tramontina","pUnit":28,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_28","stockInicial":2,"descripcion":"Cuchillo Century Office mediano","pUnit":65,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_29","stockInicial":11,"descripcion":"Dosificadores de botella","pUnit":3.5,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_30","stockInicial":6,"descripcion":"Frascos de vidrio","pUnit":7.9,"factura":"FX01-6459","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_31","stockInicial":1,"descripcion":"Hervidor Electrico","pUnit":79.9,"factura":"S/Comprobante","proveedor":"S/N","area":"BAR","observacion":""},{"id":"inv_bar_32","stockInicial":11,"descripcion":"Hielera de acero","pUnit":10,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_33","stockInicial":1,"descripcion":"Impresora Termica CBX USB ETHERNET","pUnit":480,"factura":"E001-1313","proveedor":"CODUP N&L GLOBAL TECHNOLOGY E.I.R.L.","area":"BAR","observacion":""},{"id":"inv_bar_34","stockInicial":10,"descripcion":"Jarro mug","pUnit":20,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_35","stockInicial":1,"descripcion":"Licuadora Oster Serie Profesional BLSTBPST","pUnit":459,"factura":"FA38-907422","proveedor":"HOMECENTERS PERUANOS S.A.","area":"BAR","observacion":""},{"id":"inv_bar_36","stockInicial":1,"descripcion":"Mortero slim acero","pUnit":64,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_37","stockInicial":4,"descripcion":"Oncera slim acero labrada","pUnit":45,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_38","stockInicial":2,"descripcion":"Palas de nylon para hielo","pUnit":55,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_39","stockInicial":2,"descripcion":"Pelador de cítricos","pUnit":20,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_40","stockInicial":2,"descripcion":"Picahielo tridente","pUnit":32,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_41","stockInicial":1,"descripcion":"Pinza de decorar Z","pUnit":17,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_42","stockInicial":3,"descripcion":"Posa Vaso con Luz Led 13X6CM","pUnit":3.2,"factura":"FX06-320","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_43","stockInicial":12,"descripcion":"Posa Vaso de madera","pUnit":2.95,"factura":"E001-79","proveedor":"MORE PRADO EDINSON JOE","area":"BAR","observacion":""},{"id":"inv_bar_44","stockInicial":2,"descripcion":"Rayador microplane","pUnit":14,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_45","stockInicial":12,"descripcion":"Set De Copas 2 X 06 Cerveza 380ML","pUnit":7.49,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_46","stockInicial":9,"descripcion":"Set De Copas 2 X 06 Champ & Cockt 30CL","pUnit":10.61,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_47","stockInicial":12,"descripcion":"Set De Copas 2 X 06 Wavy Vino Tinto 475CC","pUnit":2.41,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_48","stockInicial":19,"descripcion":"Set De Copas 6 X 04 Joy Martini 220CC","pUnit":2.1,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_49","stockInicial":12,"descripcion":"Set De Vasos 2 X 06 Valse Beer 440CC","pUnit":2.16,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_50","stockInicial":10,"descripcion":"Set De Vasos 3 X 04 Elysia Whisky 355CC","pUnit":2.69,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_51","stockInicial":8,"descripcion":"Set De Vasos 3 X 04 Leafy Whisky 300CC","pUnit":2.38,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_52","stockInicial":11,"descripcion":"Set De Vasos 3 X 04 Pinot Vino 495CC","pUnit":2,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_53","stockInicial":12,"descripcion":"Set De Vasos 3 X 04 Shots Whisky 15OZ","pUnit":4.99,"factura":"F005-45336","proveedor":"ESTABLECIMIENTOS INCA S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_54","stockInicial":2,"descripcion":"Soplete de bar","pUnit":35,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_55","stockInicial":12,"descripcion":"Sorbetes de vidrio","pUnit":3,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_56","stockInicial":3,"descripcion":"Sorbetes de vidrio","pUnit":4,"factura":"S/Comprobante","proveedor":"S/N","area":"BAR","observacion":""},{"id":"inv_bar_57","stockInicial":1,"descripcion":"Tabla de picar de madera","pUnit":18.8,"factura":"E001-78","proveedor":"MORE PRADO EDINSON JOE","area":"BAR","observacion":""},{"id":"inv_bar_58","stockInicial":1,"descripcion":"Tabla de picar de plastico","pUnit":7.9,"factura":"S/Comprobante","proveedor":"S/N","area":"BAR","observacion":""},{"id":"inv_bar_59","stockInicial":2,"descripcion":"Tetera de plastico","pUnit":9.9,"factura":"FX06-320","proveedor":"NEGOCIOS FU GUANG S.A.C","area":"BAR","observacion":""},{"id":"inv_bar_60","stockInicial":12,"descripcion":"Tiki TK0090","pUnit":20,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_61","stockInicial":9,"descripcion":"Vaso Curvo Alto","pUnit":13,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_62","stockInicial":9,"descripcion":"Vaso de piña de vidrio","pUnit":12,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_63","stockInicial":10,"descripcion":"Vaso de vidrio M/Bambu","pUnit":12,"factura":"F001-2480","proveedor":"ANICHEL EIRL","area":"BAR","observacion":""},{"id":"inv_bar_64","stockInicial":45,"descripcion":"Vaso Liso Manhatan 15 oz","pUnit":5.75,"factura":"F001-1522","proveedor":"CORPORACION REYES C S.A.C.","area":"BAR","observacion":""}],"CAJA":[{"id":"inv_caja_5","stockInicial":1,"descripcion":"Deco M5 3 PACK Sistema Wifi 5 GHZ 24 GHZ","pUnit":800,"factura":"E001-1313","proveedor":"CODUP N&L GLOBAL TECHNOLOGY E.I.R.L.","area":"CAJA","observacion":""},{"id":"inv_caja_6","stockInicial":1,"descripcion":"Impresora Termica POS-D BASIC 200 USB Y WIFI","pUnit":450,"factura":"E001-1313","proveedor":"CODUP N&L GLOBAL TECHNOLOGY E.I.R.L.","area":"CAJA","observacion":""}]};
+
+    const INVENTARIOS_SUB_AREAS = {
+      SALON: { key: "SALON", label: "Inventario Salón", title: "INVENTARIOS AURORA - SALON", icon: Users, accent: "#0B2B26", accentSoft: "#DAF1DE", desc: "Vajilla, loza, cristalería y cubertería de salón", xlsxFile: "INVENTARIO SALON.xlsx" },
+      COCINA: { key: "COCINA", label: "Inventario Cocina", title: "INVENTARIOS AURORA - COCINA", icon: UtensilsCrossed, accent: "#163832", accentSoft: "#DAF1DE", desc: "Equipos, menaje, recipientes gastronómicos y utensilios", xlsxFile: "INVENTARIO COCINA.xlsx" },
+      BAR: { key: "BAR", label: "Inventario Bar", title: "INVENTARIOS AURORA - BAR", icon: Wine, accent: "#235347", accentSoft: "#DAF1DE", desc: "Herramientas de coctelería, biteros, hieleras y copas", xlsxFile: "INVENTARIO BAR.xlsx" },
+      CAJA: { key: "CAJA", label: "Inventario Caja", title: "INVENTARIOS AURORA - CAJA", icon: ShieldCheck, accent: "#051F20", accentSoft: "#DAF1DE", desc: "Equipos tecnológicos, routers y terminales POS", xlsxFile: "INVENTARIO CAJA.xlsx" }
+    };
 
     const LOGISTICA_AREAS = {
       COCINA: { label: "Cocina", accent: "#163832", accentSoft: "#DAF1DE", icon: UtensilsCrossed, hasFrecuencia: true, productLabel: "NOMBRE DE PRODUCTO", unidLabel: "MEDIDA", captureCols: DEFAULT_CAPTURE_COLS, catalogBase: COCINA_CATALOG_BASE },
@@ -1426,6 +1446,7 @@ Esta acción es irreversible.`);
       const [categoryFilter, setCategoryFilter] = useState("all");
       const [loadStatus, setLoadStatus] = useState("idle");
       const [historySaves, setHistorySaves] = useState([]);
+      const [historyDateFilter, setHistoryDateFilter] = useState("selected");
       const [saveTitle, setSaveTitle] = useState("");
       const [isSyncingCloud, setIsSyncingCloud] = useState(false);
       const [cloudSyncStatus, setCloudSyncStatus] = useState("connected");
@@ -1438,6 +1459,25 @@ Esta acción es irreversible.`);
       const [sessionRemainingSeconds, setSessionRemainingSeconds] = useState(null);
       const [showSessionWarningModal, setShowSessionWarningModal] = useState(false);
       const [sessionDurationConfig, setSessionDurationConfig] = useState(DEFAULT_SESSION_DURATION_MINUTES);
+
+      // Estados de INVENTARIOS (Salón, Cocina, Bar, Caja)
+      const [invSubArea, setInvSubArea] = useState(() => {
+        try {
+          const s = localStorage.getItem("aurora_active_inv_subarea");
+          return (s && INVENTARIOS_SUB_AREAS[s]) ? s : "SALON";
+        } catch (e) { return "SALON"; }
+      });
+      const [invFecha, setInvFecha] = useState(todayISO());
+      const [invResponsable, setInvResponsable] = useState("");
+      const [invEntries, setInvEntries] = useState({});
+      const [invSearchQuery, setInvSearchQuery] = useState("");
+      const [invCatalogs, setInvCatalogs] = useState(INVENTARIOS_BASE_DATA);
+      const [invLoadStatus, setInvLoadStatus] = useState("idle");
+      const [invHistorySaves, setInvHistorySaves] = useState([]);
+      const [isAddingInvItem, setIsAddingInvItem] = useState(false);
+      const [editingInvItem, setEditingInvItem] = useState(null);
+      const [invItemDraft, setInvItemDraft] = useState({ descripcion: "", stockInicial: 0, pUnit: 0, factura: "", proveedor: "", observacion: "" });
+
 
       // Listener para cerrar los menús desplegables al hacer clic fuera o presionar ESC
       useEffect(() => {
@@ -1612,6 +1652,7 @@ Esta acción es irreversible.`);
             exportDate: new Date().toISOString(),
             exportedBy: authedUser?.name || "Usuario",
             users: await storageGet("aurora_users", INITIAL_USERS),
+            announcement: await storageGet("aurora_logistica_announcement", DEFAULT_LOGISTICA_ANNOUNCEMENT),
             catalogs: {},
             histories: {}
           };
@@ -1670,6 +1711,12 @@ Esta acción es irreversible.`);
           if (backupData.users && Array.isArray(backupData.users)) {
             await storageSet("aurora_users", backupData.users);
             setUsers(backupData.users);
+          }
+
+          if (backupData.announcement) {
+            await storageSet("aurora_logistica_announcement", backupData.announcement);
+            setLogisticaAnnouncement(backupData.announcement);
+            setAnnouncementDraft(backupData.announcement);
           }
 
           const newCatalogByArea = { ...catalogByArea };
@@ -1736,6 +1783,12 @@ Esta acción es irreversible.`);
       const [authSecurityMap, setAuthSecurityMap] = useState({});
       const [rrhhDocs, setRrhhDocs] = useState({});
 
+      // Comunicado Emergente para Logística (Configurable por Administrador)
+      const [logisticaAnnouncement, setLogisticaAnnouncement] = useState(DEFAULT_LOGISTICA_ANNOUNCEMENT);
+      const [showLogAnnouncementModal, setShowLogAnnouncementModal] = useState(false);
+      const [announcementDraft, setAnnouncementDraft] = useState(DEFAULT_LOGISTICA_ANNOUNCEMENT);
+      const [announcementSaveSuccess, setAnnouncementSaveSuccess] = useState(false);
+
       // Cambio de contraseña para todos los usuarios
       const [isChangePassOpen, setIsChangePassOpen] = useState(false);
       const [changePassForm, setChangePassForm] = useState({ currentPass: "", newPass: "", confirmPass: "" });
@@ -1795,6 +1848,47 @@ Esta acción es irreversible.`);
       ];
       const [roleIndex, setRoleIndex] = useState(0);
 
+      
+      // Cargar catálogos e historial de inventarios
+      useEffect(() => {
+        storageGet("aurora_inv_catalogs", INVENTARIOS_BASE_DATA).then((loaded) => {
+          if (loaded && typeof loaded === "object") {
+            setInvCatalogs(prev => ({ ...INVENTARIOS_BASE_DATA, ...loaded }));
+          }
+        });
+      }, []);
+
+      // Cargar datos de inventario cuando cambia subÁrea o fecha
+      useEffect(() => {
+        if (!invSubArea) return;
+        const key = `inv:${invSubArea}:${invFecha}`;
+        setInvLoadStatus("loading");
+        storageGet(key, null).then((saved) => {
+          if (saved && saved.entries) {
+            setInvEntries(saved.entries);
+            if (saved.responsable) setInvResponsable(saved.responsable);
+            setInvLoadStatus("saved");
+          } else {
+            // Inicializar entradas con stock inicial del catálogo
+            const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+            const initial = {};
+            cat.forEach(it => {
+              initial[it.id] = {
+                stockActual: it.stockInicial !== undefined ? String(it.stockInicial) : "0",
+                observacion: it.observacion || ""
+              };
+            });
+            setInvEntries(initial);
+            setInvLoadStatus("idle");
+          }
+        });
+
+        // Cargar historial de guardados de la sub-área
+        storageGet(`invHistory:${invSubArea}`, []).then((hist) => {
+          setInvHistorySaves(Array.isArray(hist) ? hist : []);
+        });
+      }, [invSubArea, invFecha, invCatalogs]);
+
       // Cargar usuarios con auto-migración a hash criptográfico y datos iniciales
       useEffect(() => {
         storageGet('aurora_users', INITIAL_USERS).then(async (loaded) => {
@@ -1817,6 +1911,14 @@ Esta acción es irreversible.`);
           const sConf = await getSessionConfig();
           const durationMins = sConf.durationMinutes || DEFAULT_SESSION_DURATION_MINUTES;
           setSessionDurationConfig(durationMins);
+
+          // Cargar configuración del comunicado emergente de logística
+          const savedAnnouncement = await storageGet('aurora_logistica_announcement', DEFAULT_LOGISTICA_ANNOUNCEMENT);
+          if (savedAnnouncement && typeof savedAnnouncement === 'object') {
+            const merged = { ...DEFAULT_LOGISTICA_ANNOUNCEMENT, ...savedAnnouncement };
+            setLogisticaAnnouncement(merged);
+            setAnnouncementDraft(merged);
+          }
 
           // Restaurar sesión de autorización activa (mantener credenciales y verificar expiración)
           const savedSession = await storageGet('aurora_session', null);
@@ -1956,38 +2058,62 @@ Esta acción es irreversible.`);
 
       // Comprobación de cambios no guardados en formularios o catálogos
       function hasUnsavedWork() {
-        if (screen === "logForm") {
-          if (loadStatus === "saved") return false;
-          const entriesList = Object.values(entries || {});
-          return entriesList.some((e) => {
-            if (!e) return false;
-            return Object.entries(e).some(([k, v]) => {
-              if (typeof v === "boolean") return v;
-              return v !== undefined && v !== null && String(v).trim() !== "";
+        try {
+          if (screen === "logForm") {
+            if (loadStatus === "saved" || loadStatus === "found") return false;
+            const entriesList = Object.values(entries || {});
+            return entriesList.some((e) => {
+              if (!e || typeof e !== "object") return false;
+              return Object.entries(e).some(([k, v]) => {
+                if (typeof v === "boolean") return v;
+                return v !== undefined && v !== null && String(v).trim() !== "";
+              });
             });
-          });
-        }
+          }
 
-        if (screen === "logCatalogo") {
-          if (editingId && draft) {
-            return !!(draft.p?.trim() || draft.b1?.trim() || draft.b2?.trim() || draft.u?.trim());
+          if (screen === "logCatalogo") {
+            if (editingId && draft) {
+              return !!(draft.p?.trim() || draft.b1?.trim() || draft.b2?.trim() || draft.u?.trim());
+            }
+            if (editingTransformId && transformDraft) {
+              return !!(transformDraft.name?.trim());
+            }
+            return false;
           }
-          if (editingTransformId && transformDraft) {
-            return !!(transformDraft.name?.trim());
+
+          if (screen === "invForm") {
+            if (invLoadStatus === "saved") return false;
+            const values = Object.values(invEntries || {});
+            return values.some(v => v && (v.stockActual !== undefined || (v.observacion && v.observacion.trim())));
           }
+
+          if (screen === "checklist") {
+            const hasCheckRows = (checkRows || []).some(r => {
+              if (!r) return false;
+              const hasNombre = !!(r.nombre && String(r.nombre).trim());
+              const hasObs = !!(r.observacion && String(r.observacion).trim());
+              let hasAsp = false;
+              if (r.aspectos) {
+                if (Array.isArray(r.aspectos)) {
+                  hasAsp = r.aspectos.some(a => a !== undefined && a !== null && String(a).trim() !== "");
+                } else if (typeof r.aspectos === "object") {
+                  hasAsp = Object.values(r.aspectos).some(a => a !== undefined && a !== null && String(a).trim() !== "");
+                }
+              }
+              return hasNombre || hasAsp || hasObs;
+            });
+            if (checkArea === "SALON" && salonSubModule === "limpieza_orden") {
+              const hasLimp = Object.values(limpiezaEntries || {}).some(v => v !== undefined && v !== null && String(v).trim() !== "");
+              return hasLimp;
+            }
+            return hasCheckRows;
+          }
+
+          return false;
+        } catch (err) {
+          console.warn("hasUnsavedWork error fallback:", err);
           return false;
         }
-
-        if (screen === "checklist") {
-          const hasCheckRows = (checkRows || []).some(r => r.nombre?.trim() || (r.aspectos && r.aspectos.some(a => a)) || r.observacion?.trim());
-          if (checkArea === "SALON" && salonSubModule === "limpieza_orden") {
-            const hasLimp = Object.values(limpiezaEntries || {}).some(v => v !== undefined && v !== null && String(v).trim() !== "");
-            return hasLimp;
-          }
-          return hasCheckRows;
-        }
-
-        return false;
       }
 
       function safeSetScreen(targetScreen, force = false) {
@@ -2013,6 +2139,18 @@ Esta acción es irreversible.`);
         }
       }, [screen]);
 
+      // Desplegar automáticamente la ventana emergente al ingresar al departamento de Logística si está habilitada
+      useEffect(() => {
+        if (screen === "logistica") {
+          storageGet("aurora_logistica_announcement", DEFAULT_LOGISTICA_ANNOUNCEMENT).then((latest) => {
+            if (latest && latest.enabled) {
+              setLogisticaAnnouncement(latest);
+              setShowLogAnnouncementModal(true);
+            }
+          });
+        }
+      }, [screen]);
+
       // Guard para evitar pantallas en blanco si falta area, checkArea o successInfo al estar en logForm, logCatalogo, checklist o success
       useEffect(() => {
         if ((screen === "logForm" || screen === "logCatalogo") && !area) {
@@ -2029,6 +2167,13 @@ Esta acción es irreversible.`);
             setScreen("checklist");
           } else {
             setScreen("operaciones");
+          }
+        } else if ((screen === "invForm" || screen === "invCatalogo") && !invSubArea) {
+          const savedInv = localStorage.getItem("aurora_active_inv_subarea");
+          if (savedInv && INVENTARIOS_SUB_AREAS[savedInv]) {
+            setInvSubArea(savedInv);
+          } else {
+            setInvSubArea("SALON");
           }
         } else if (screen === "success" && !successInfo) {
           const savedArea = localStorage.getItem("aurora_active_area");
@@ -2079,19 +2224,48 @@ Esta acción es irreversible.`);
         }
       }, [screen]);
 
-      // Cargar datos automáticamente al seleccionar un área o cambiar la fecha en Logística
+      // Manejador seguro para cambiar la fecha del calendario con confirmación si hay cambios sin guardar
+      function handleDateChange(newFecha) {
+        if (!newFecha) return;
+        if (hasUnsavedWork()) {
+          const confirmChange = window.confirm(
+            "⚠️ Tienes datos modificados en el formulario de la fecha actual.\n\n¿Deseas cambiar de fecha y visualizar el historial correspondiente a ese día?"
+          );
+          if (!confirmChange) return;
+        }
+        setFecha(newFecha);
+      }
+
+      // Cargar datos automáticamente al seleccionar un área o cambiar la fecha en el calendario de Logística
       useEffect(() => {
         if (screen === "logForm" && area) {
-          setEntries({});
-          setLoadStatus("empty");
-
           setIsSyncingCloud(true);
+          const cleanFecha = sanitizeDate(fecha);
+
           fetchAreaHistory(area).then((sorted) => {
             setHistorySaves(sorted);
             setCloudSyncStatus("connected");
             setLastSyncTime(new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+
+            // Buscar si existe un requerimiento guardado previamente para la fecha seleccionada en el calendario
+            const matchingSnapshot = sorted.find((it) => it.fecha === cleanFecha);
+
+            if (matchingSnapshot && matchingSnapshot.entries && Object.keys(matchingSnapshot.entries).length > 0) {
+              // Cargar automáticamente en el formulario el requerimiento guardado de ese día anterior
+              setEntries(matchingSnapshot.entries || {});
+              setSaveTitle(matchingSnapshot.title || "");
+              setLoadStatus("found");
+            } else {
+              // No hay requerimientos guardados para esta fecha: formulario en blanco listo para llenar
+              setEntries({});
+              setSaveTitle("");
+              setLoadStatus("empty");
+            }
           }).catch((err) => {
             console.warn("Error cargando historial de área:", err);
+            setEntries({});
+            setSaveTitle("");
+            setLoadStatus("empty");
           }).finally(() => {
             setIsSyncingCloud(false);
           });
@@ -2308,6 +2482,236 @@ Esta acción es irreversible.`);
           setChangePassSuccess("");
           setChangePassError("");
         }, 1500);
+      }
+
+      
+      // FUNCIONES DE INVENTARIOS
+      function pickInvSubArea(key) {
+        if (screen === "invForm" && hasUnsavedWork()) {
+          const confirmLeave = window.confirm("⚠️ ADVERTENCIA: Hay cambios de inventario sin guardar.\n\n¿Deseas cambiar de sub-área sin guardar?");
+          if (!confirmLeave) return;
+        }
+        setInvSubArea(key);
+        try { localStorage.setItem("aurora_active_inv_subarea", key); } catch(e){}
+        setInvFecha(todayISO());
+        setInvResponsable(sanitizeText(authedUser?.name?.toUpperCase() || ""));
+        setInvSearchQuery("");
+        setInvLoadStatus("idle");
+        safeSetScreen("invForm");
+      }
+
+      function updateInvEntry(itemId, field, value) {
+        let val = value;
+        if (field === "stockActual") {
+          val = String(value).replace(/[^0-9.]/g, '').slice(0, 10);
+        } else if (field === "observacion") {
+          val = sanitizeText(value, 200);
+        }
+        setInvEntries(prev => ({
+          ...prev,
+          [itemId]: {
+            ...(prev[itemId] || {}),
+            [field]: val
+          }
+        }));
+        setInvLoadStatus("idle");
+      }
+
+      async function saveInvRequirement() {
+        if (!invSubArea) return;
+        const subInfo = INVENTARIOS_SUB_AREAS[invSubArea];
+        const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+        
+        let totalItems = cat.length;
+        let totalVal = 0;
+        let diffCount = 0;
+
+        cat.forEach(it => {
+          const e = invEntries[it.id] || {};
+          const stAct = parseFloat(e.stockActual !== undefined && e.stockActual !== "" ? e.stockActual : it.stockInicial) || 0;
+          const stIni = parseFloat(it.stockInicial) || 0;
+          const pu = parseFloat(it.pUnit) || 0;
+          totalVal += stAct * pu;
+          if (stAct !== stIni) diffCount++;
+        });
+
+        const payload = {
+          subArea: invSubArea,
+          fecha: invFecha,
+          responsable: invResponsable || authedUser?.name || "USUARIO",
+          entries: invEntries,
+          totalItems,
+          totalVal,
+          diffCount,
+          updatedAt: new Date().toISOString()
+        };
+
+        const key = `inv:${invSubArea}:${invFecha}`;
+        const ok = await storageSet(key, payload);
+
+        // Actualizar historial
+        const histKey = `invHistory:${invSubArea}`;
+        const currentHist = Array.isArray(invHistorySaves) ? invHistorySaves.filter(h => h.fecha !== invFecha) : [];
+        const newHist = [{ fecha: invFecha, responsable: payload.responsable, totalVal, diffCount, updatedAt: payload.updatedAt }, ...currentHist];
+        await storageSet(histKey, newHist);
+        setInvHistorySaves(newHist);
+
+        if (ok) {
+          setInvLoadStatus("saved");
+          alert(`✅ Inventario de ${subInfo?.label || "Inventarios"} del día ${invFecha} guardado y sincronizado con éxito.`);
+        } else {
+          alert("⚠️ Guardado localmente. Error de conexión con Supabase.");
+        }
+      }
+
+      function exportInvExcel() {
+        const xlsxLib = getXLSXLib();
+        if (!xlsxLib) {
+          alert("Librería Excel cargando. Por favor reintenta en un momento.");
+          return;
+        }
+        const subInfo = INVENTARIOS_SUB_AREAS[invSubArea] || { title: "INVENTARIOS AURORA", label: "Inventario" };
+        const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+
+        const rows = [
+          [subInfo.title],
+          ["RESPONSABLE:", invResponsable || authedUser?.name || ""],
+          ["FECHA:", invFecha],
+          ["Stock inicial", "DESCRIPCIÓN", "P.UNIT", "TOTAL", "Factura", "Proveedor", "Stock actual", "Diferencia", "AREA", "Observacion"]
+        ];
+
+        cat.forEach(it => {
+          const e = invEntries[it.id] || {};
+          const stIni = parseFloat(it.stockInicial) || 0;
+          const stAct = parseFloat(e.stockActual !== undefined && e.stockActual !== "" ? e.stockActual : it.stockInicial) || 0;
+          const pu = parseFloat(it.pUnit) || 0;
+          const tot = stAct * pu;
+          const diff = stAct - stIni;
+          const obs = e.observacion !== undefined ? e.observacion : (it.observacion || "");
+
+          rows.push([
+            stIni,
+            it.descripcion,
+            pu > 0 ? pu.toFixed(2) : "-",
+            tot > 0 ? tot.toFixed(2) : "-",
+            it.factura || "",
+            it.proveedor || "",
+            stAct,
+            diff,
+            it.area || invSubArea,
+            obs
+          ]);
+        });
+
+        const ws = xlsxLib.utils.aoa_to_sheet(rows);
+        ws["!cols"] = [
+          { wch: 14 }, // Stock inicial
+          { wch: 45 }, // DESCRIPCION
+          { wch: 12 }, // P.UNIT
+          { wch: 14 }, // TOTAL
+          { wch: 16 }, // Factura
+          { wch: 35 }, // Proveedor
+          { wch: 14 }, // Stock actual
+          { wch: 12 }, // Diferencia
+          { wch: 14 }, // AREA
+          { wch: 30 }  // Observacion
+        ];
+
+        applyTableStyle(ws, [], 3);
+        const wb = xlsxLib.utils.book_new();
+        xlsxLib.utils.book_append_sheet(wb, ws, subInfo.label.slice(0, 31));
+        const filename = `${subInfo.title.replace(/\s+/g, '_')}_${invFecha}.xlsx`;
+        xlsxLib.writeFile(wb, filename);
+      }
+
+      function exportInvPdf() {
+        if (!window.jspdf) {
+          alert("Librería PDF cargando. Por favor reintenta en un momento.");
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: "landscape" });
+        const subInfo = INVENTARIOS_SUB_AREAS[invSubArea] || { title: "INVENTARIOS AURORA", label: "Inventario" };
+        const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+
+        // Encabezado
+        doc.setFontSize(14);
+        doc.setTextColor(11, 43, 38);
+        doc.text(subInfo.title, 14, 15);
+        doc.setFontSize(9.5);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`RESPONSABLE: ${invResponsable || authedUser?.name || "USUARIO"}  |  FECHA: ${invFecha}  |  AURORASYNC GESTIÓN INTEGRAL`, 14, 22);
+
+        const tableBody = cat.map((it, idx) => {
+          const e = invEntries[it.id] || {};
+          const stIni = parseFloat(it.stockInicial) || 0;
+          const stAct = parseFloat(e.stockActual !== undefined && e.stockActual !== "" ? e.stockActual : it.stockInicial) || 0;
+          const pu = parseFloat(it.pUnit) || 0;
+          const tot = stAct * pu;
+          const diff = stAct - stIni;
+          const obs = e.observacion !== undefined ? e.observacion : (it.observacion || "");
+
+          return [
+            idx + 1,
+            it.descripcion,
+            stIni,
+            stAct,
+            diff === 0 ? "0" : (diff > 0 ? `+${diff}` : String(diff)),
+            pu > 0 ? `S/ ${pu.toFixed(2)}` : "-",
+            tot > 0 ? `S/ ${tot.toFixed(2)}` : "-",
+            it.factura || "-",
+            it.proveedor || "-",
+            obs
+          ];
+        });
+
+        doc.autoTable({
+          startY: 26,
+          head: [["#", "DESCRIPCIÓN", "ST. INI", "ST. ACT", "DIF.", "P. UNIT", "TOTAL", "FACTURA", "PROVEEDOR", "OBSERVACIÓN"]],
+          body: tableBody,
+          styles: { fontSize: 7.5, cellPadding: 2 },
+          headStyles: { fillColor: [22, 56, 50], textColor: [255, 255, 255], fontStyle: "bold" },
+          alternateRowStyles: { fillColor: [248, 251, 249] }
+        });
+
+        doc.save(`${subInfo.title.replace(/\s+/g, '_')}_${invFecha}.pdf`);
+      }
+
+      // CRUD Catálogo Inventario
+      async function saveInvCatalogProduct() {
+        if (!invItemDraft.descripcion.trim()) {
+          alert("Por favor ingresa la descripción del artículo.");
+          return;
+        }
+        const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+        let updated;
+        if (editingInvItem) {
+          updated = cat.map(it => it.id === editingInvItem.id ? { ...it, ...invItemDraft } : it);
+        } else {
+          const newItem = {
+            id: "inv_" + invSubArea.toLowerCase() + "_" + Date.now(),
+            ...invItemDraft,
+            area: invSubArea
+          };
+          updated = [newItem, ...cat];
+        }
+
+        const newCatalogs = { ...invCatalogs, [invSubArea]: updated };
+        setInvCatalogs(newCatalogs);
+        await storageSet("aurora_inv_catalogs", newCatalogs);
+        setIsAddingInvItem(false);
+        setEditingInvItem(null);
+        setInvItemDraft({ descripcion: "", stockInicial: 0, pUnit: 0, factura: "", proveedor: "", observacion: "" });
+        alert("✅ Catálogo de inventario actualizado correctamente.");
+      }
+
+      async function deleteInvCatalogProduct(itemId) {
+        if (!window.confirm("¿Estás seguro de eliminar este artículo del catálogo de inventario?")) return;
+        const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+        const updated = cat.filter(it => it.id !== itemId);
+        const newCatalogs = { ...invCatalogs, [invSubArea]: updated };
+        setInvCatalogs(newCatalogs);
+        await storageSet("aurora_inv_catalogs", newCatalogs);
       }
 
       // LOGISTICA FUNCIONES
@@ -3509,6 +3913,30 @@ Esta acción es irreversible.`);
         const currentSec = await getAuthSecurity();
         setAuthSecurityMap(currentSec);
         alert(`La cuenta de usuario '${userToUnlock}' ha sido desbloqueada exitosamente.`);
+      }
+
+      // Guardar Parámetros de Ventana Emergente de Logística
+      async function handleSaveAnnouncementConfig(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (!isAdmin) {
+          alert("Acceso denegado: Solo administradores pueden configurar la ventana emergente de logística.");
+          return;
+        }
+        const cleanTitle = sanitizeText(announcementDraft.title || "", 120);
+        const cleanMessage = sanitizeText(announcementDraft.message || "", 1500);
+        const updatedConfig = {
+          enabled: Boolean(announcementDraft.enabled),
+          title: cleanTitle.trim() || "Comunicado de Logística",
+          message: cleanMessage.trim(),
+          updatedAt: new Date().toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }),
+          updatedBy: authedUser?.name || "Administrador"
+        };
+
+        const ok = await storageSet("aurora_logistica_announcement", updatedConfig);
+        setLogisticaAnnouncement(updatedConfig);
+        setAnnouncementDraft(updatedConfig);
+        setAnnouncementSaveSuccess(true);
+        setTimeout(() => setAnnouncementSaveSuccess(false), 3500);
       }
 
       // CHECKLIST DE OPERACIONES FUNCIONES
@@ -5246,6 +5674,198 @@ Esta acción es irreversible.`);
                     </div>
                   </div>
                 </div>
+
+                {/* PARÁMETROS DE LOGÍSTICA: VENTANA EMERGENTE Y COMUNICADOS */}
+                <div className="glass-card" style={{ padding: "22px 24px", marginTop: "24px", borderRadius: "18px", border: "1.5px solid #8EB69B", background: "#FFFFFF" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: "#DAF1DE", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #8EB69B" }}>
+                        <Megaphone size={22} color="#0B2B26" />
+                      </div>
+                      <div>
+                        <h3 className="heading-fine" style={{ margin: 0, fontSize: 16, color: "#051F20" }}>Parámetros de Logística · Ventana Emergente</h3>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, color: "#235347" }}>Configura el comunicado oficial que se desplegará en una ventana emergente para los usuarios al ingresar a Logística</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        background: announcementDraft.enabled ? "#DAF1DE" : "#F3F4F6",
+                        color: announcementDraft.enabled ? "#0B2B26" : "#6B7280",
+                        padding: "4px 10px",
+                        borderRadius: 12,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        border: `1px solid ${announcementDraft.enabled ? "#8EB69B" : "#D1D5DB"}`,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4
+                      }}>
+                        {announcementDraft.enabled ? <ShieldCheck size={13} /> : <AlertCircle size={13} />}
+                        {announcementDraft.enabled ? "HABILITADO" : "DESHABILITADO"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSaveAnnouncementConfig} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {/* Switch / Casilla de activación */}
+                    <div
+                      onClick={() => setAnnouncementDraft(prev => ({ ...prev, enabled: !prev.enabled }))}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "12px 16px",
+                        background: announcementDraft.enabled ? "#F4FBF7" : "#F9FAFB",
+                        border: `1.5px solid ${announcementDraft.enabled ? "#8EB69B" : "#E5E7EB"}`,
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#051F20" }}>
+                          Mostrar ventana emergente al ingresar a Logística
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "#235347", marginTop: 2 }}>
+                          {announcementDraft.enabled
+                            ? "Los usuarios verán este mensaje en una ventana emergente cada vez que ingresen al departamento de Logística."
+                            : "La ventana emergente se encuentra inactiva. Los usuarios entrarán directamente a Logística sin aviso."}
+                        </div>
+                      </div>
+
+                      {/* Toggle visual */}
+                      <div style={{
+                        width: 46,
+                        height: 26,
+                        borderRadius: 14,
+                        background: announcementDraft.enabled ? "#0B2B26" : "#D1D5DB",
+                        position: "relative",
+                        transition: "background 0.2s",
+                        flexShrink: 0
+                      }}>
+                        <div style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          background: "#FFFFFF",
+                          position: "absolute",
+                          top: 3,
+                          left: announcementDraft.enabled ? 23 : 3,
+                          transition: "left 0.2s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Campo Título */}
+                    <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+                      Título del Comunicado
+                      <input
+                        value={announcementDraft.title}
+                        onChange={(e) => setAnnouncementDraft(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Ej: Comunicado del Departamento de Logística"
+                        className="admin-input"
+                        maxLength={100}
+                        style={{ padding: "9px 12px", fontSize: 13, background: "#FFFFFF" }}
+                      />
+                    </label>
+
+                    {/* Campo Mensaje con TextArea multi-línea */}
+                    <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+                      Mensaje de la Ventana Emergente
+                      <textarea
+                        rows={4}
+                        value={announcementDraft.message}
+                        onChange={(e) => setAnnouncementDraft(prev => ({ ...prev, message: e.target.value }))}
+                        placeholder="Escriba aquí el mensaje, avisos, recordatorios de stock o instrucciones..."
+                        className="admin-input"
+                        maxLength={1200}
+                        style={{
+                          padding: "10px 12px",
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          resize: "vertical",
+                          fontFamily: "inherit",
+                          background: "#FFFFFF"
+                        }}
+                      />
+                    </label>
+
+                    {announcementSaveSuccess && (
+                      <div style={{
+                        background: "#DAF1DE",
+                        border: "1px solid #8EB69B",
+                        color: "#0B2B26",
+                        borderRadius: 10,
+                        padding: "10px 14px",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        animation: "fadeIn 0.2s"
+                      }}>
+                        <CheckCircle2 size={16} /> ¡Parámetros de ventana emergente guardados y sincronizados exitosamente!
+                      </div>
+                    )}
+
+                    {/* Botones de acción */}
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                      <div style={{ fontSize: 11.5, color: "#6B7280" }}>
+                        {logisticaAnnouncement.updatedAt && (
+                          <span>Última modificación: {logisticaAnnouncement.updatedAt} {logisticaAnnouncement.updatedBy ? `(${logisticaAnnouncement.updatedBy})` : ""}</span>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogisticaAnnouncement(announcementDraft);
+                            setShowLogAnnouncementModal(true);
+                          }}
+                          style={{
+                            background: "#FFFFFF",
+                            color: "#163832",
+                            border: "1.5px solid #8EB69B",
+                            borderRadius: 10,
+                            padding: "9px 16px",
+                            fontWeight: 600,
+                            fontSize: 12.5,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6
+                          }}
+                          title="Ver cómo lo verán los usuarios"
+                        >
+                          <Eye size={15} /> Vista Previa
+                        </button>
+
+                        <button
+                          type="submit"
+                          style={{
+                            background: "#0B2B26",
+                            color: "#FFFFFF",
+                            border: "none",
+                            borderRadius: 10,
+                            padding: "9px 20px",
+                            fontWeight: 600,
+                            fontSize: 12.5,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            boxShadow: "0 3px 10px rgba(11,43,38,0.2)"
+                          }}
+                        >
+                          <Save size={15} /> Guardar Parámetros
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
 
@@ -5264,10 +5884,68 @@ Esta acción es irreversible.`);
                 >
                   <ArrowLeft size={15} /> Volver al Inicio
                 </button>
-                <h1 className="heading-fine" style={{ fontSize: 26, margin: "0 0 20px" }}>
-                  Logística · Selecciona un Área
-                </h1>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+                  <h1 className="heading-fine" style={{ fontSize: 26, margin: 0 }}>
+                    Logística · Selecciona un Área
+                  </h1>
+                  {logisticaAnnouncement?.enabled && (
+                    <button
+                      onClick={() => setShowLogAnnouncementModal(true)}
+                      style={{
+                        background: "#DAF1DE",
+                        border: "1px solid #8EB69B",
+                        color: "#0B2B26",
+                        borderRadius: 12,
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        transition: "all 0.15s"
+                      }}
+                      title="Ver comunicado oficial de Logística"
+                    >
+                      <Megaphone size={14} color="#0B2B26" />
+                      <span>Ver comunicado oficial</span>
+                    </button>
+                  )}
+                </div>
                 <div className="area-grid">
+                  {/* ======================================================== */}
+                  {/* ÁREA DESTACADA: INVENTARIOS (4 SUB-ÁREAS)                */}
+                  {/* ======================================================== */}
+                  <button
+                    onClick={() => safeSetScreen("inventarios")}
+                    className="glass-card"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 16, padding: "20px 22px",
+                      color: "#051F20", border: "2px solid #0B2B26",
+                      borderRadius: "18px", textAlign: "left", background: "linear-gradient(135deg, #FFFFFF 0%, #F4FBF6 100%)",
+                      boxShadow: "0 4px 15px rgba(11, 43, 38, 0.08)", cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.borderColor = "#163832"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseOut={(e) => { e.currentTarget.style.borderColor = "#0B2B26"; e.currentTarget.style.transform = "translateY(0)"; }}
+                  >
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14, background: "#DAF1DE",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      border: "1.5px solid #8EB69B"
+                    }}>
+                      <Boxes size={25} color="#0B2B26" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="heading-fine" style={{ fontSize: 19, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                        Inventarios <span style={{ fontSize: 10.5, background: "#0B2B26", color: "#FFF", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>NUEVA ÁREA</span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "#235347", marginTop: 2, fontWeight: 500 }}>
+                        4 Sub-Áreas: Salón, Cocina, Bar y Caja
+                      </div>
+                    </div>
+                  </button>
+
                   {Object.entries(LOGISTICA_AREAS).map(([key, info]) => {
                     const Icon = info.icon;
                     const count = (catalogByArea[key] || []).length;
@@ -5307,6 +5985,584 @@ Esta acción es irreversible.`);
             {/* ========================================================================= */}
             {/* PANTALLA ADMINISTRAR CATALOGO LOGISTICA ELEGANTE */}
             {/* ========================================================================= */}
+                        {/* ========================================================================= */}
+            {/* PANTALLA HUB DE INVENTARIOS (SUB-ÁREAS: SALÓN, COCINA, BAR, CAJA) */}
+            {/* ========================================================================= */}
+            {screen === "inventarios" && (
+              <div style={{ width: "100%", maxWidth: 940, marginTop: 10 }}>
+                <button
+                  onClick={() => safeSetScreen("logistica")}
+                  style={{
+                    background: "#FFFFFF", border: "1.5px solid #8EB69B",
+                    borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
+                    alignItems: "center", gap: 6, cursor: "pointer", marginBottom: 18, fontSize: 12.5, fontWeight: 600
+                  }}
+                >
+                  <ArrowLeft size={15} /> Volver a Logística
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 22 }}>
+                  <div>
+                    <h1 className="heading-fine" style={{ fontSize: 26, margin: 0, color: "#051F20" }}>
+                      Logística · Departamento de Inventarios
+                    </h1>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "#235347" }}>
+                      Control de existencias, activos físicos y auditoría periódica por sub-área.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="area-grid">
+                  {Object.entries(INVENTARIOS_SUB_AREAS).map(([key, info]) => {
+                    const Icon = info.icon;
+                    const items = (invCatalogs && invCatalogs[key]) || INVENTARIOS_BASE_DATA[key] || [];
+                    const count = items.length;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => pickInvSubArea(key)}
+                        className="glass-card"
+                        style={{
+                          display: "flex", alignItems: "center", gap: 16, padding: "22px 24px",
+                          color: "#051F20", border: "1.5px solid " + info.accent,
+                          borderRadius: "18px", textAlign: "left", background: "#FFFFFF",
+                          cursor: "pointer", transition: "all 0.2s",
+                          boxShadow: "0 3px 12px rgba(0,0,0,0.04)"
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+                        onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}
+                      >
+                        <div style={{
+                          width: 52, height: 52, borderRadius: 16, background: info.accentSoft,
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                          border: "1px solid #8EB69B"
+                        }}>
+                          <Icon size={26} color={info.accent} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div className="heading-fine" style={{ fontSize: 19, fontWeight: 700, color: info.accent }}>
+                            {info.label}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#235347", marginTop: 3 }}>
+                            {info.desc}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: "#163832", marginTop: 6, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, background: "#DAF1DE", padding: "2px 8px", borderRadius: 8 }}>
+                            <Boxes size={12} /> {count} activos en catálogo
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANTALLA FORMULARIO / HOJA OPERATIVA DE INVENTARIO */}
+            {/* ========================================================================= */}
+            {screen === "invForm" && invSubArea && (
+              <div style={{ width: "100%", maxWidth: 1180, marginTop: 10 }}>
+                {(() => {
+                  const subInfo = INVENTARIOS_SUB_AREAS[invSubArea] || INVENTARIOS_SUB_AREAS.SALON;
+                  const SubIcon = subInfo.icon;
+                  const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+
+                  // Filtrado por buscador
+                  const filtered = cat.filter(it => {
+                    if (!invSearchQuery.trim()) return true;
+                    const q = normalizeForSearch(invSearchQuery);
+                    return normalizeForSearch(it.descripcion).includes(q) ||
+                           normalizeForSearch(it.factura).includes(q) ||
+                           normalizeForSearch(it.proveedor).includes(q);
+                  });
+
+                  // Métricas en vivo
+                  let totalVal = 0;
+                  let diffCount = 0;
+                  let auditedCount = 0;
+                  cat.forEach(it => {
+                    const e = invEntries[it.id] || {};
+                    const stIni = parseFloat(it.stockInicial) || 0;
+                    const stAct = parseFloat(e.stockActual !== undefined && e.stockActual !== "" ? e.stockActual : it.stockInicial) || 0;
+                    const pu = parseFloat(it.pUnit) || 0;
+                    totalVal += stAct * pu;
+                    if (stAct !== stIni) diffCount++;
+                    if (e.stockActual !== undefined && e.stockActual !== "") auditedCount++;
+                  });
+
+                  return (
+                    <div>
+                      {/* Barra superior de navegación */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+                        <button
+                          onClick={() => safeSetScreen("inventarios")}
+                          style={{
+                            background: "#FFFFFF", border: "1.5px solid #8EB69B",
+                            borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
+                            alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 600
+                          }}
+                        >
+                          <ArrowLeft size={15} /> Volver a Inventarios
+                        </button>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            onClick={() => safeSetScreen("invCatalogo")}
+                            style={{
+                              background: "#FFFFFF", border: "1.5px solid #8EB69B", color: subInfo.accent,
+                              borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 600,
+                              cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6
+                            }}
+                          >
+                            <Settings size={14} /> Administrar Catálogo
+                          </button>
+                          <button
+                            onClick={exportInvExcel}
+                            style={{
+                              background: "#166534", color: "#FFFFFF", border: "none",
+                              borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 600,
+                              cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6
+                            }}
+                          >
+                            <Download size={14} /> Exportar Excel (.xlsx)
+                          </button>
+                          <button
+                            onClick={exportInvPdf}
+                            style={{
+                              background: "#0F766E", color: "#FFFFFF", border: "none",
+                              borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 600,
+                              cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6
+                            }}
+                          >
+                            <FileText size={14} /> Exportar PDF
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tarjeta principal de Encabezado y Metadatos */}
+                      <div className="glass-card" style={{ padding: "20px 24px", borderRadius: 18, border: "1.5px solid " + subInfo.accent, background: "#FFFFFF", marginBottom: 18 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, borderBottom: "1px solid #E5E7EB", paddingBottom: 14, marginBottom: 14 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 12, background: subInfo.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #8EB69B" }}>
+                              <SubIcon size={24} color={subInfo.accent} />
+                            </div>
+                            <div>
+                              <h2 className="heading-fine" style={{ margin: 0, fontSize: 20, color: "#051F20" }}>
+                                {subInfo.title}
+                              </h2>
+                              <div style={{ fontSize: 12, color: "#235347", marginTop: 2 }}>
+                                Plantilla oficial: {subInfo.xlsxFile}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button
+                              onClick={saveInvRequirement}
+                              style={{
+                                background: "#0B2B26", color: "#FFFFFF", border: "none",
+                                borderRadius: 12, padding: "10px 18px", fontSize: 13.5, fontWeight: 700,
+                                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8,
+                                boxShadow: "0 3px 12px rgba(11,43,38,0.2)"
+                              }}
+                            >
+                              <Save size={16} /> Guardar Inventario
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Parámetros: Fecha y Responsable */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "#235347" }}>
+                            Fecha de Inventario
+                            <input
+                              type="date"
+                              value={invFecha}
+                              onChange={(e) => setInvFecha(e.target.value)}
+                              className="admin-input"
+                              style={{ padding: "8px 12px", fontSize: 13, background: "#FFFFFF" }}
+                            />
+                          </label>
+
+                          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "#235347" }}>
+                            Responsable del Registro
+                            <input
+                              type="text"
+                              value={invResponsable}
+                              onChange={(e) => setInvResponsable(e.target.value.toUpperCase())}
+                              placeholder="NOMBRE DEL RESPONSABLE"
+                              className="admin-input"
+                              style={{ padding: "8px 12px", fontSize: 13, background: "#FFFFFF" }}
+                            />
+                          </label>
+
+                          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "#235347" }}>
+                            Buscador Rápido de Artículos
+                            <div style={{ position: "relative" }}>
+                              <Search size={15} color="#8EB69B" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+                              <input
+                                type="text"
+                                value={invSearchQuery}
+                                onChange={(e) => setInvSearchQuery(e.target.value)}
+                                placeholder="Buscar por descripción, factura o proveedor..."
+                                className="admin-input"
+                                style={{ padding: "8px 12px 8px 32px", fontSize: 13, width: "100%", background: "#FFFFFF" }}
+                              />
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* Tarjetas de Métricas en Vivo */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginTop: 16 }}>
+                          <div style={{ background: "#F4FBF7", border: "1px solid #8EB69B", borderRadius: 12, padding: "10px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#235347", fontWeight: 600 }}>TOTAL ARTÍCULOS</div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: "#0B2B26" }}>{cat.length}</div>
+                          </div>
+
+                          <div style={{ background: "#F4FBF7", border: "1px solid #8EB69B", borderRadius: 12, padding: "10px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#235347", fontWeight: 600 }}>CONTEO AUDITADO</div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: "#166534" }}>{auditedCount} / {cat.length}</div>
+                          </div>
+
+                          <div style={{ background: diffCount > 0 ? "#FEF2F2" : "#F4FBF7", border: "1px solid " + (diffCount > 0 ? '#FCA5A5' : '#8EB69B'), borderRadius: 12, padding: "10px 14px" }}>
+                            <div style={{ fontSize: 11, color: diffCount > 0 ? "#991B1B" : "#235347", fontWeight: 600 }}>CON DIFERENCIA</div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: diffCount > 0 ? "#DC2626" : "#051F20" }}>{diffCount} ítems</div>
+                          </div>
+
+                          <div style={{ background: "#F4FBF7", border: "1px solid #8EB69B", borderRadius: 12, padding: "10px 14px" }}>
+                            <div style={{ fontSize: 11, color: "#235347", fontWeight: 600 }}>TOTAL VALORIZADO</div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: "#0B2B26" }}>S/ {totalVal.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* TABLA DE INVENTARIO */}
+                      <div className="glass-card" style={{ padding: 0, borderRadius: 18, border: "1.5px solid #8EB69B", overflow: "hidden", background: "#FFFFFF", marginBottom: 25 }}>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 12.5 }}>
+                            <thead>
+                              <tr style={{ background: "#163832", color: "#FFFFFF" }}>
+                                <th style={{ padding: "12px 10px", width: 40, textAlign: "center" }}>#</th>
+                                <th style={{ padding: "12px 12px", width: 95, textAlign: "center" }}>Stock Inicial</th>
+                                <th style={{ padding: "12px 14px", minWidth: 220 }}>Descripción del Artículo</th>
+                                <th style={{ padding: "12px 10px", width: 95, textAlign: "right" }}>P. Unit</th>
+                                <th style={{ padding: "12px 12px", width: 105, textAlign: "right" }}>Total (S/)</th>
+                                <th style={{ padding: "12px 12px", width: 110 }}>Factura</th>
+                                <th style={{ padding: "12px 12px", width: 140 }}>Proveedor</th>
+                                <th style={{ padding: "12px 12px", width: 110, textAlign: "center", background: "#0B2B26" }}>Stock Actual</th>
+                                <th style={{ padding: "12px 10px", width: 85, textAlign: "center" }}>Diferencia</th>
+                                <th style={{ padding: "12px 14px", minWidth: 160 }}>Observación</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.length === 0 ? (
+                                <tr>
+                                  <td colSpan={10} style={{ padding: 30, textAlign: "center", color: "#6B7280" }}>
+                                    No se encontraron artículos que coincidan con la búsqueda.
+                                  </td>
+                                </tr>
+                              ) : (
+                                filtered.map((it, idx) => {
+                                  const e = invEntries[it.id] || {};
+                                  const stIni = parseFloat(it.stockInicial) || 0;
+                                  const stAct = e.stockActual !== undefined && e.stockActual !== "" ? parseFloat(e.stockActual) || 0 : stIni;
+                                  const pu = parseFloat(it.pUnit) || 0;
+                                  const tot = stAct * pu;
+                                  const diff = stAct - stIni;
+                                  const currentObs = e.observacion !== undefined ? e.observacion : (it.observacion || "");
+
+                                  return (
+                                    <tr
+                                      key={it.id}
+                                      style={{
+                                        borderBottom: "1px solid #E5E7EB",
+                                        background: idx % 2 === 0 ? "#FFFFFF" : "#F9FBF9",
+                                        transition: "background 0.15s"
+                                      }}
+                                    >
+                                      <td style={{ padding: "10px", textAlign: "center", color: "#6B7280", fontSize: 11 }}>{idx + 1}</td>
+                                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, color: "#374151" }}>
+                                        {stIni}
+                                      </td>
+                                      <td style={{ padding: "10px 14px", fontWeight: 600, color: "#111827" }}>
+                                        {it.descripcion}
+                                      </td>
+                                      <td style={{ padding: "10px", textAlign: "right", color: "#374151" }}>
+                                        {pu > 0 ? ("S/ " + pu.toFixed(2)) : "-"}
+                                      </td>
+                                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: "#0B2B26" }}>
+                                        {tot > 0 ? ("S/ " + tot.toFixed(2)) : "-"}
+                                      </td>
+                                      <td style={{ padding: "10px 12px", color: "#4B5563", fontSize: 12 }}>
+                                        {it.factura || "-"}
+                                      </td>
+                                      <td style={{ padding: "10px 12px", color: "#4B5563", fontSize: 12 }}>
+                                        {it.proveedor || "-"}
+                                      </td>
+                                      <td style={{ padding: "8px 10px", textAlign: "center", background: "#F4FBF7" }}>
+                                        <input
+                                          type="text"
+                                          value={e.stockActual !== undefined ? e.stockActual : stIni}
+                                          onChange={(ev) => updateInvEntry(it.id, "stockActual", ev.target.value)}
+                                          style={{
+                                            width: 75,
+                                            padding: "6px 8px",
+                                            textAlign: "center",
+                                            borderRadius: 8,
+                                            border: "1.5px solid #8EB69B",
+                                            fontWeight: 700,
+                                            fontSize: 13,
+                                            color: "#051F20",
+                                            background: "#FFFFFF"
+                                          }}
+                                        />
+                                      </td>
+                                      <td style={{ padding: "10px", textAlign: "center" }}>
+                                        <span style={{
+                                          padding: "3px 8px",
+                                          borderRadius: 8,
+                                          fontSize: 12,
+                                          fontWeight: 700,
+                                          display: "inline-block",
+                                          minWidth: 32,
+                                          background: diff === 0 ? "#DCFCE7" : (diff < 0 ? "#FEE2E2" : "#DBEAFE"),
+                                          color: diff === 0 ? "#166534" : (diff < 0 ? "#991B1B" : "#1E40AF")
+                                        }}>
+                                          {diff === 0 ? "0" : (diff > 0 ? ("+" + diff) : diff)}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: "8px 12px" }}>
+                                        <input
+                                          type="text"
+                                          value={currentObs}
+                                          onChange={(ev) => updateInvEntry(it.id, "observacion", ev.target.value)}
+                                          placeholder="Observaciones..."
+                                          style={{
+                                            width: "100%",
+                                            padding: "6px 10px",
+                                            borderRadius: 8,
+                                            border: "1px solid #D1D5DB",
+                                            fontSize: 12,
+                                            color: "#374151"
+                                          }}
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANTALLA ADMINISTRAR CATÁLOGO DE INVENTARIO */}
+            {/* ========================================================================= */}
+            {screen === "invCatalogo" && invSubArea && (
+              <div style={{ width: "100%", maxWidth: 960, marginTop: 10 }}>
+                {(() => {
+                  const subInfo = INVENTARIOS_SUB_AREAS[invSubArea] || INVENTARIOS_SUB_AREAS.SALON;
+                  const cat = (invCatalogs && invCatalogs[invSubArea]) || INVENTARIOS_BASE_DATA[invSubArea] || [];
+
+                  return (
+                    <div>
+                      <button
+                        onClick={() => safeSetScreen("invForm")}
+                        style={{
+                          background: "#FFFFFF", border: "1.5px solid #8EB69B",
+                          borderRadius: 10, padding: "7px 12px", color: "#163832", display: "inline-flex",
+                          alignItems: "center", gap: 6, cursor: "pointer", marginBottom: 18, fontSize: 12.5, fontWeight: 600
+                        }}
+                      >
+                        <ArrowLeft size={15} /> Volver a {subInfo.label}
+                      </button>
+
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
+                        <div>
+                          <h2 className="heading-fine" style={{ margin: 0, fontSize: 24, color: "#051F20" }}>
+                            Catálogo · {subInfo.label}
+                          </h2>
+                          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#235347" }}>
+                            Administra la lista oficial de activos, códigos de factura y precios unitarios.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setEditingInvItem(null);
+                            setInvItemDraft({ descripcion: "", stockInicial: 0, pUnit: 0, factura: "", proveedor: "", observacion: "" });
+                            setIsAddingInvItem(true);
+                          }}
+                          style={{
+                            background: subInfo.accent, color: "#FFFFFF", border: "none",
+                            borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 700,
+                            cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6
+                          }}
+                        >
+                          <Plus size={16} /> Agregar Nuevo Artículo
+                        </button>
+                      </div>
+
+                      {/* Formulario para Agregar o Editar */}
+                      {isAddingInvItem && (
+                        <div className="glass-card" style={{ padding: "20px 24px", borderRadius: 16, border: "2px solid " + subInfo.accent, background: "#FFFFFF", marginBottom: 20 }}>
+                          <h3 style={{ margin: "0 0 14px", fontSize: 16, color: subInfo.accent }}>
+                            {editingInvItem ? "Editar Artículo del Catálogo" : "Nuevo Artículo para el Catálogo"}
+                          </h3>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              Descripción del Artículo *
+                              <input
+                                type="text"
+                                value={invItemDraft.descripcion}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, descripcion: e.target.value })}
+                                placeholder="Ej: Copa de Vino 16 OZ"
+                                className="admin-input"
+                              />
+                            </label>
+
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              Stock Inicial Base
+                              <input
+                                type="number"
+                                value={invItemDraft.stockInicial}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, stockInicial: parseFloat(e.target.value) || 0 })}
+                                className="admin-input"
+                              />
+                            </label>
+
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              Precio Unitario (S/.)
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={invItemDraft.pUnit}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, pUnit: parseFloat(e.target.value) || 0 })}
+                                className="admin-input"
+                              />
+                            </label>
+
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              N° Factura / Boleta
+                              <input
+                                type="text"
+                                value={invItemDraft.factura}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, factura: e.target.value })}
+                                placeholder="Ej: F001-2480"
+                                className="admin-input"
+                              />
+                            </label>
+
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              Proveedor
+                              <input
+                                type="text"
+                                value={invItemDraft.proveedor}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, proveedor: e.target.value })}
+                                placeholder="Ej: ANICHEL EIRL"
+                                className="admin-input"
+                              />
+                            </label>
+
+                            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                              Observaciones por defecto
+                              <input
+                                type="text"
+                                value={invItemDraft.observacion}
+                                onChange={(e) => setInvItemDraft({ ...invItemDraft, observacion: e.target.value })}
+                                placeholder="Opcional..."
+                                className="admin-input"
+                              />
+                            </label>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                            <button
+                              onClick={() => { setIsAddingInvItem(false); setEditingInvItem(null); }}
+                              style={{ background: "#F3F4F6", border: "1px solid #D1D5DB", borderRadius: 8, padding: "8px 14px", fontSize: 12.5, cursor: "pointer", fontWeight: 600 }}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={saveInvCatalogProduct}
+                              style={{ background: subInfo.accent, color: "#FFFFFF", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12.5, cursor: "pointer", fontWeight: 700 }}
+                            >
+                              Guardar en Catálogo
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Lista de Artículos */}
+                      <div className="glass-card" style={{ padding: 0, borderRadius: 16, overflow: "hidden", border: "1px solid #8EB69B", background: "#FFFFFF" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                          <thead>
+                            <tr style={{ background: "#163832", color: "#FFFFFF" }}>
+                              <th style={{ padding: "10px", width: 40, textAlign: "center" }}>#</th>
+                              <th style={{ padding: "10px 14px" }}>Descripción</th>
+                              <th style={{ padding: "10px", textAlign: "center", width: 80 }}>St. Inicial</th>
+                              <th style={{ padding: "10px", textAlign: "right", width: 90 }}>P. Unit</th>
+                              <th style={{ padding: "10px 12px", width: 110 }}>Factura</th>
+                              <th style={{ padding: "10px 12px", width: 150 }}>Proveedor</th>
+                              <th style={{ padding: "10px", textAlign: "center", width: 100 }}>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cat.map((it, idx) => (
+                              <tr key={it.id} style={{ borderBottom: "1px solid #E5E7EB", background: idx % 2 === 0 ? "#FFFFFF" : "#F9FBF9" }}>
+                                <td style={{ padding: "8px", textAlign: "center", color: "#6B7280" }}>{idx + 1}</td>
+                                <td style={{ padding: "8px 14px", fontWeight: 600, color: "#111827" }}>{it.descripcion}</td>
+                                <td style={{ padding: "8px", textAlign: "center", color: "#374151" }}>{it.stockInicial}</td>
+                                <td style={{ padding: "8px", textAlign: "right", color: "#374151" }}>{it.pUnit > 0 ? ("S/ " + it.pUnit.toFixed(2)) : "-"}</td>
+                                <td style={{ padding: "8px 12px", color: "#4B5563" }}>{it.factura || "-"}</td>
+                                <td style={{ padding: "8px 12px", color: "#4B5563" }}>{it.proveedor || "-"}</td>
+                                <td style={{ padding: "8px", textAlign: "center" }}>
+                                  <div style={{ display: "inline-flex", gap: 6 }}>
+                                    <button
+                                      onClick={() => {
+                                        setEditingInvItem(it);
+                                        setInvItemDraft({
+                                          descripcion: it.descripcion,
+                                          stockInicial: it.stockInicial,
+                                          pUnit: it.pUnit,
+                                          factura: it.factura || "",
+                                          proveedor: it.proveedor || "",
+                                          observacion: it.observacion || ""
+                                        });
+                                        setIsAddingInvItem(true);
+                                      }}
+                                      style={{ background: "none", border: "none", cursor: "pointer", color: "#2563EB", padding: 4 }}
+                                      title="Editar"
+                                    >
+                                      <Pencil size={15} />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteInvCatalogProduct(it.id)}
+                                      style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", padding: 4 }}
+                                      title="Eliminar"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+
             {screen === "logCatalogo" && areaInfo && authedUser && (
               <div style={{ width: "100%", maxWidth: 920, marginTop: 10 }}>
                 <button
@@ -5506,10 +6762,53 @@ Esta acción es irreversible.`);
                   </div>
 
                   <div className="form-fields">
-                    <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
-                      Fecha
-                      <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="admin-input" />
-                    </label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+                        Fecha del Requerimiento (Cambia la fecha para ver días anteriores)
+                        <input
+                          type="date"
+                          value={fecha}
+                          onChange={(e) => handleDateChange(e.target.value)}
+                          className="admin-input"
+                        />
+                      </label>
+
+                      {/* Indicador reactivo del historial según la fecha elegida en el calendario */}
+                      {(() => {
+                        const countForDate = historySaves.filter((s) => s.fecha === fecha).length;
+                        const activeSnapshot = historySaves.find((s) => s.fecha === fecha);
+                        const dateParts = fecha.split("-");
+                        const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : fecha;
+
+                        if (countForDate > 0 && activeSnapshot) {
+                          return (
+                            <div style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              fontSize: 12, fontWeight: 600, color: "#166534", background: "#DCFCE7",
+                              border: "1px solid #BBF7D0", padding: "6px 12px", borderRadius: 10, marginTop: 2
+                            }}>
+                              <CheckCircle2 size={15} color="#16A34A" />
+                              <span>
+                                Cargado historial del {formattedDate}: <strong>{activeSnapshot.title || "Requerimiento Guardado"}</strong>
+                                {countForDate > 1 ? ` (${countForDate} versiones guardadas abajo)` : ""}
+                              </span>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              fontSize: 12, fontWeight: 600, color: "#92400E", background: "#FEF3C7",
+                              border: "1px solid #FDE68A", padding: "6px 12px", borderRadius: 10, marginTop: 2
+                            }}>
+                              <AlertCircle size={15} color="#D97706" />
+                              <span>Sin registros previos guardados para el {formattedDate}. Formulario en blanco.</span>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+
                     <label style={{ fontSize: 12.5, color: "#235347", fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
                       Encargado (Fijo por Usuario)
                       <input
@@ -5527,10 +6826,25 @@ Esta acción es irreversible.`);
                 <div className="glass-card" style={{ padding: "20px 22px", marginBottom: 22, borderRadius: "18px", overflow: "visible" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <h3 className="heading-fine" style={{ margin: 0, fontSize: 15 }}>Historial de Guardado</h3>
-                      <span style={{ fontSize: 11.5, color: "#0B2B26", background: "#DAF1DE", borderRadius: 16, padding: "3px 10px", fontWeight: 600, border: "1px solid #8EB69B" }}>
-                        {historySaves.length} {historySaves.length === 1 ? "versión guardada" : "versiones guardadas"}
-                      </span>
+                      <h3 className="heading-fine" style={{ margin: 0, fontSize: 15 }}>Historial de Archivos Guardados</h3>
+                      {(() => {
+                        const countForSelected = historySaves.filter((s) => s.fecha === fecha).length;
+                        const dateParts = fecha.split("-");
+                        const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : fecha;
+
+                        if (historyDateFilter === "selected") {
+                          return (
+                            <span style={{ fontSize: 11.5, color: "#0B2B26", background: "#DAF1DE", borderRadius: 16, padding: "3px 10px", fontWeight: 600, border: "1px solid #8EB69B" }}>
+                              {countForSelected} {countForSelected === 1 ? `archivo para el ${formattedDate}` : `archivos para el ${formattedDate}`}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span style={{ fontSize: 11.5, color: "#0B2B26", background: "#DAF1DE", borderRadius: 16, padding: "3px 10px", fontWeight: 600, border: "1px solid #8EB69B" }}>
+                            {historySaves.length} {historySaves.length === 1 ? "versión guardada (total)" : "versiones guardadas (total)"}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -5620,32 +6934,125 @@ Esta acción es irreversible.`);
                     />
                   </div>
 
+                  {/* Filtro interactivo de fechas del historial */}
+                  {historySaves.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#235347" }}>Vista del Historial:</span>
+                        <button
+                          type="button"
+                          onClick={() => setHistoryDateFilter("selected")}
+                          style={{
+                            border: "1.5px solid #8EB69B",
+                            background: historyDateFilter === "selected" ? "#0B2B26" : "#FFFFFF",
+                            color: historyDateFilter === "selected" ? "#FFFFFF" : "#0B2B26",
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5
+                          }}
+                        >
+                          <Calendar size={12} />
+                          <span>
+                            Fecha en calendario: {(() => {
+                              const d = fecha.split("-");
+                              return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : fecha;
+                            })()} ({historySaves.filter((s) => s.fecha === fecha).length})
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHistoryDateFilter("all")}
+                          style={{
+                            border: "1.5px solid #8EB69B",
+                            background: historyDateFilter === "all" ? "#0B2B26" : "#FFFFFF",
+                            color: historyDateFilter === "all" ? "#FFFFFF" : "#0B2B26",
+                            borderRadius: 8,
+                            padding: "4px 10px",
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            cursor: "pointer"
+                          }}
+                        >
+                          Ver todas las fechas ({historySaves.length})
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    {historySaves.length === 0 ? (
-                      <span style={{ color: "#235347", fontSize: 12.5 }}>Todavía no hay guardados para esta área.</span>
-                    ) : (
-                      historySaves.map((snapshot, idx) => {
+                    {(() => {
+                      const displayedHistory = historyDateFilter === "selected"
+                        ? historySaves.filter((s) => s.fecha === fecha)
+                        : historySaves;
+
+                      if (displayedHistory.length === 0) {
+                        const dateParts = fecha.split("-");
+                        const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : fecha;
+                        return (
+                          <div style={{
+                            padding: "16px 18px",
+                            borderRadius: 12,
+                            background: "#F9FCFA",
+                            border: "1.5px dashed #8EB69B",
+                            color: "#235347",
+                            fontSize: 12.5,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            width: "100%"
+                          }}>
+                            <Calendar size={18} color="#235347" />
+                            <span>
+                              {historyDateFilter === "selected"
+                                ? `No hay archivos generados para el ${formattedDate}. Si deseas ver registros anteriores, selecciona otra fecha en el calendario superior o pulsa "Ver todas las fechas".`
+                                : "Todavía no hay archivos guardados para esta área."}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return displayedHistory.map((snapshot, idx) => {
                         const cardId = `${snapshot.fecha}-${snapshot.savedAt || idx}`;
                         const isMenuOpen = openHistoryExportMenu === cardId;
                         const formattedTime = snapshot.savedAtFormatted || (snapshot.savedAt ? `${snapshot.fecha} · ${new Date(snapshot.savedAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}` : snapshot.fecha);
                         const creatorName = (snapshot.createdBy || snapshot.encargado || "Usuario").toUpperCase();
                         const isEdited = snapshot.isEdited || !!snapshot.editedBy;
                         const editorName = (snapshot.editedBy || (isEdited ? authedUser?.name : null) || "").toUpperCase();
+                        const isCurrentDate = snapshot.fecha === fecha;
 
                         return (
                           <div
                             key={cardId}
                             style={{
-                              border: "1.5px solid #8EB69B", borderRadius: 14, background: "#FFFFFF",
+                              border: isCurrentDate ? "2px solid #0B2B26" : "1.5px solid #8EB69B",
+                              borderRadius: 14,
+                              background: isCurrentDate ? "#F9FCFA" : "#FFFFFF",
                               color: "#051F20", padding: "12px 14px", fontSize: 12, fontWeight: 600,
                               display: "flex", flexDirection: "column", gap: 6, minWidth: 240, textAlign: "left",
-                              position: "relative", boxShadow: "0 2px 8px rgba(5, 31, 32, 0.04)"
+                              position: "relative",
+                              boxShadow: isCurrentDate ? "0 4px 16px rgba(11, 43, 38, 0.12)" : "0 2px 8px rgba(5, 31, 32, 0.04)"
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                              <span style={{ color: "#051F20", fontWeight: 700, fontSize: 13 }}>
-                                {snapshot.title || `Guardado ${idx + 1}`}
-                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <span style={{ color: "#051F20", fontWeight: 700, fontSize: 13 }}>
+                                  {snapshot.title || `Guardado ${idx + 1}`}
+                                </span>
+                                {isCurrentDate && (
+                                  <span style={{
+                                    background: "#0B2B26", color: "#FFFFFF", borderRadius: 6,
+                                    padding: "2px 6px", fontSize: 9.5, fontWeight: 700,
+                                    display: "inline-flex", alignItems: "center", gap: 3
+                                  }}>
+                                    <Calendar size={10} color="#8EB69B" /> ACTIVA
+                                  </span>
+                                )}
+                              </div>
                               {isAdmin && (
                                 <button
                                   onClick={() => deleteHistorySnapshot(snapshot)}
@@ -5752,8 +7159,8 @@ Esta acción es irreversible.`);
                             </div>
                           </div>
                         );
-                      })
-                    )}
+                      });
+                    })()}
                   </div>
                 </div>
 
@@ -6437,6 +7844,160 @@ Esta acción es irreversible.`);
                 >
                   Volver al Formulario
                 </button>
+              </div>
+            )}
+
+            {/* Modal / Ventana Emergente de Comunicado de Logística */}
+            {showLogAnnouncementModal && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="log-announcement-title"
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 1200,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 20,
+                  background: "rgba(5, 31, 32, 0.55)",
+                  backdropFilter: "blur(7px)",
+                  animation: "fadeIn 0.2s ease-out"
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setShowLogAnnouncementModal(false);
+                }}
+              >
+                <div
+                  className="glass-card"
+                  style={{
+                    width: "100%",
+                    maxWidth: 520,
+                    padding: "30px 28px",
+                    background: "#FFFFFF",
+                    boxShadow: "0 24px 60px rgba(5, 31, 32, 0.3)",
+                    border: "2px solid #8EB69B",
+                    borderRadius: 22,
+                    animation: "scaleIn 0.2s ease-out",
+                    position: "relative"
+                  }}
+                >
+                  {/* Botón X de cerrar en la esquina superior derecha */}
+                  <button
+                    onClick={() => setShowLogAnnouncementModal(false)}
+                    aria-label="Cerrar ventana emergente"
+                    style={{
+                      position: "absolute",
+                      top: 18,
+                      right: 18,
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      border: "1px solid #DAF1DE",
+                      background: "#F4FBF7",
+                      color: "#163832",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = "#FEE2E2";
+                      e.currentTarget.style.color = "#DC2626";
+                      e.currentTarget.style.borderColor = "#FCA5A5";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = "#F4FBF7";
+                      e.currentTarget.style.color = "#163832";
+                      e.currentTarget.style.borderColor = "#DAF1DE";
+                    }}
+                    title="Cerrar (X)"
+                  >
+                    <X size={18} />
+                  </button>
+
+                  {/* Header del Comunicado con Icono */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18, paddingRight: 40 }}>
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
+                      background: "#DAF1DE",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1.5px solid #8EB69B",
+                      flexShrink: 0
+                    }}>
+                      <Megaphone size={24} color="#0B2B26" />
+                    </div>
+                    <div>
+                      <div style={{
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#235347",
+                        fontWeight: 700
+                      }}>
+                        Departamento de Logística · Aurora
+                      </div>
+                      <h2 id="log-announcement-title" className="heading-fine" style={{ margin: "2px 0 0", fontSize: 20, color: "#051F20", lineHeight: 1.25 }}>
+                        {logisticaAnnouncement?.title || "Comunicado de Logística"}
+                      </h2>
+                    </div>
+                  </div>
+
+                  {/* Contenido del Mensaje con formato multi-línea */}
+                  <div style={{
+                    background: "#F4FBF7",
+                    border: "1px solid #DAF1DE",
+                    borderRadius: 14,
+                    padding: "18px 20px",
+                    marginBottom: 20,
+                    color: "#051F20",
+                    fontSize: 14,
+                    lineHeight: 1.65,
+                    whiteSpace: "pre-wrap",
+                    maxHeight: "55vh",
+                    overflowY: "auto"
+                  }}>
+                    {logisticaAnnouncement?.message || "Sin mensaje configurado."}
+                  </div>
+
+                  {/* Pie del Modal: Información de actualización y botón de confirmación */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                    {logisticaAnnouncement?.updatedAt ? (
+                      <div style={{ fontSize: 11.5, color: "#6B7280" }}>
+                        Actualizado: {logisticaAnnouncement.updatedAt} {logisticaAnnouncement.updatedBy ? `por ${logisticaAnnouncement.updatedBy}` : ""}
+                      </div>
+                    ) : <div />}
+
+                    <button
+                      onClick={() => setShowLogAnnouncementModal(false)}
+                      style={{
+                        background: "#0B2B26",
+                        color: "#FFFFFF",
+                        border: "none",
+                        borderRadius: 12,
+                        padding: "10px 22px",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        boxShadow: "0 4px 12px rgba(11, 43, 38, 0.25)",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = "#163832"}
+                      onMouseOut={(e) => e.currentTarget.style.background = "#0B2B26"}
+                    >
+                      <CheckCircle2 size={16} /> Entendido
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
