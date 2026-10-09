@@ -793,7 +793,7 @@
     }
 
     // Sanitización estricta de cadenas de texto (prevención XSS y control chars)
-    function sanitizeText(str, maxLength = 250) {
+    function sanitizeText(str, maxLength = 250, doTrim = false) {
       if (str === null || str === undefined) return "";
       let s = String(str);
       // Elimina tags script y style con su contenido interno
@@ -808,7 +808,7 @@
       s = s.replace(/on\w+\s*=/gi, '');
       // Elimina caracteres de control ASCII
       s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-      return s.trim().slice(0, maxLength);
+      return doTrim ? s.slice(0, maxLength).trim() : s.slice(0, maxLength);
     }
 
     // Sanitización de nombres de usuario (Soporta ñ, Ñ y caracteres en español)
@@ -1653,6 +1653,7 @@ Esta acción es irreversible.`);
             exportedBy: authedUser?.name || "Usuario",
             users: await storageGet("aurora_users", INITIAL_USERS),
             announcement: await storageGet("aurora_logistica_announcement", DEFAULT_LOGISTICA_ANNOUNCEMENT),
+            invCatalogs: await storageGet("aurora_inv_catalogs", INVENTARIOS_BASE_DATA),
             catalogs: {},
             histories: {}
           };
@@ -1717,6 +1718,11 @@ Esta acción es irreversible.`);
             await storageSet("aurora_logistica_announcement", backupData.announcement);
             setLogisticaAnnouncement(backupData.announcement);
             setAnnouncementDraft(backupData.announcement);
+          }
+
+          if (backupData.invCatalogs && typeof backupData.invCatalogs === "object") {
+            await storageSet("aurora_inv_catalogs", backupData.invCatalogs);
+            setInvCatalogs(prev => ({ ...INVENTARIOS_BASE_DATA, ...backupData.invCatalogs }));
           }
 
           const newCatalogByArea = { ...catalogByArea };
@@ -7312,7 +7318,7 @@ Esta acción es irreversible.`);
                                           </td>
                                         ))}
                                         {isTransformation && <td><input type="text" value={e.cantidadB || ""} onChange={(ev) => updateEntry(key, "cantidadB", ev.target.value)} placeholder="0" /></td>}
-                                        <td><input type="text" className="wide" value={e.observaciones} onChange={(ev) => updateEntry(key, "observaciones", ev.target.value)} placeholder="Notas..." /></td>
+                                        <td><input type="text" className="wide" value={e.observaciones ?? ""} onChange={(ev) => updateEntry(key, "observaciones", ev.target.value)} placeholder="Notas..." /></td>
                                       </tr>
                                     );
                                   })}
